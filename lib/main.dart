@@ -885,34 +885,58 @@ class _AfinadorAppState extends State<AfinadorApp> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('Afinador Vocal'),
-            bottom: const TabBar(tabs: [
-              Tab(text: ' Afinador'),
-              Tab(text: ' Escala'),
-            ]),
-          ),
-          body: TabBarView(children: [
-            _buildAbaAfinador(),
-            _buildAbaSequencia(),
+@override
+Widget build(BuildContext context) {
+  return MaterialApp(
+ theme: ThemeData(
+  cardTheme: CardThemeData(
+    color: Colors.white.withOpacity(0.88),
+    elevation: 4,
+  ),
+),
+
+    home: DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.black54,
+          title: const Text('Afinador Vocal'),
+          bottom: const TabBar(tabs: [
+            Tab(text: ' Afinador'),
+            Tab(text: ' Escala'),
           ]),
         ),
+        body: Stack(
+          children: [
+            // 🖼️ IMAGEM DE FUNDO
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/og-image.png'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            // 📱 CONTEÚDO POR CIMA
+            TabBarView(children: [
+              _buildAbaAfinador(),
+              _buildAbaSequencia(),
+            ]),
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildAbaAfinador() {
     final desvio = _desvioAlvo;
     final cor = _corDesvio(desvio);
     final seta = _textoDesvio(desvio);
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+  padding: const EdgeInsets.fromLTRB(16, 100, 16, 16), // topo maior pra não ficar atrás da AppBar
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1053,7 +1077,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
         _fase == FaseSequencia.tocando ||
         _fase == FaseSequencia.ouvindo;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+   padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
