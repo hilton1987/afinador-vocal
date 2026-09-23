@@ -15,10 +15,19 @@ const List<String> vogais = ['A', 'E', 'I', 'O', 'U'];
 
 const List<int> registrosVocais = [1, 2, 3, 4, 5, 6];
 
+// Formantes para síntese de vogal (F1, F2, F3 em Hz)
+const Map<String, List<double>> formantes = {
+  'A': [730, 1090, 2440],
+  'E': [530, 1840, 2480],
+  'I': [270, 2290, 3010],
+  'O': [570, 840, 2410],
+  'U': [300, 870, 2240],
+};
+
 enum Dificuldade {
-  facil('Fácil', 25, 50, 'Iniciante'),
-  medio('Médio', 15, 30, 'Intermediário'),
-  rigoroso('Rigoroso', 5, 15, 'Profissional');
+  iniciante('Iniciantes', 25, 50, 'Iniciante'),
+  amador('Amadores', 15, 30, 'Amador'),
+  profissional('Profissionais', 5, 15, 'Profissional');
 
   final String nome;
   final int verde;
@@ -44,7 +53,7 @@ final Map<String, Map<String, SequenciaDef>> _categorias = {
     'Eólio (Menor Natural)': const SequenciaDef('Eólio', [0, 2, 3, 5, 7, 8, 10, 12]),
     'Lócrio': const SequenciaDef('Lócrio', [0, 1, 3, 5, 6, 8, 10, 12]),
   },
-  '🎶 Escalas Menores': {
+  ' Escalas Menores': {
     'Menor Harmônica': const SequenciaDef('Menor Harm.', [0, 2, 3, 5, 7, 8, 11, 12]),
     'Menor Melódica': const SequenciaDef('Menor Mel.', [0, 2, 3, 5, 7, 9, 11, 12]),
     'Menor Húngara': const SequenciaDef('Menor Húng.', [0, 2, 3, 6, 7, 8, 11, 12]),
@@ -65,7 +74,7 @@ final Map<String, Map<String, SequenciaDef>> _categorias = {
     'Napolitana Maior': const SequenciaDef('Nap. Maior', [0, 1, 3, 5, 7, 9, 11, 12]),
     'Napolitana Menor': const SequenciaDef('Nap. Menor', [0, 1, 3, 5, 7, 8, 10, 12]),
   },
-  '🔁 Simétricas': {
+  ' Simétricas': {
     'Tons Inteiros': const SequenciaDef('Tons Int.', [0, 2, 4, 6, 8, 10, 12]),
     'Cromática': const SequenciaDef('Cromática', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
     'Diminuta (T/S)': const SequenciaDef('Dim. T/S', [0, 2, 3, 5, 6, 8, 9, 11, 12]),
@@ -160,8 +169,9 @@ class _AfinadorAppState extends State<AfinadorApp> {
   int _oitava = 4;
   String _notaAlvo = 'F4';
   double _freqAlvo = 349.23;
+  String _vogalAfinador = 'A'; // Vogal selecionada no afinador
 
-  Dificuldade _dificuldade = Dificuldade.medio;
+  Dificuldade _dificuldade = Dificuldade.amador;
 
   bool _ouvindo = false;
   double _freqCantada = 0;
@@ -192,7 +202,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
 
   // Gravação
   web.MediaRecorder? _mediaRecorder;
-    web.MediaStreamAudioDestinationNode? _destinoGravacao;
+  web.MediaStreamAudioDestinationNode? _destinoGravacao;
   final List<web.Blob> _audioChunks = [];
   String? _audioUrl;
   bool _gravando = false;
@@ -308,24 +318,68 @@ class _AfinadorAppState extends State<AfinadorApp> {
     osc.stop(now + dur);
   }
 
+  // Síntese de vogal por formantes
+  void _tocarVogal(double freq, String vogal, {double dur = 1.5}) {
+    final ctx = _audioCtx!;
+    final now = ctx.currentTime;
+    final form = formantes[vogal]!;
+
+    // Oscilador principal (fonte sonora)
+    final osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+
+    // 3 filtros bandpass para os formantes
+    final f1 = ctx.createBiquadFilter();
+    f1.type = 'bandpass';
+    f1.frequency.value = form[0];
+    f1.Q.value = 10;
+
+    final f2 = ctx.createBiquadFilter();
+    f2.type = 'bandpass';
+    f2.frequency.value = form[1];
+    f2.Q.value = 10;
+
+    final f3 = ctx.createBiquadFilter();
+    f3.type = 'bandpass';
+    f3.frequency.value = form[2];
+    f3.Q.value = 10;
+
+    // Gains para cada formante
+    final g1 = ctx.createGain();
+    g1.gain.value = 1.0;
+    final g2 = ctx.createGain();
+    g2.gain.value = 0.8;
+    final g3 = ctx.createGain();
+    g3.gain.value = 0.6;
+
+    // Gain master com envelope
+    final masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, now);
+    masterGain.gain.linearRampToValueAtTime(0.25, now + 0.05);
+    masterGain.gain.setValueAtTime(0.25, now + dur - 0.1);
+    masterGain.gain.linearRampToValueAtTime(0, now + dur);
+
+    // Conectar: osc -> filtros -> gains -> master -> destino
+    osc.connect(f1);
+    osc.connect(f2);
+    osc.connect(f3);
+    f1.connect(g1);
+    f2.connect(g2);
+    f3.connect(g3);
+    g1.connect(masterGain);
+    g2.connect(masterGain);
+    g3.connect(masterGain);
+    masterGain.connect(ctx.destination);
+    if (_destinoGravacao != null) masterGain.connect(_destinoGravacao!);
+
+    osc.start(now);
+    osc.stop(now + dur);
+  }
+
   void _tocarNota() {
     _audioCtx ??= web.AudioContext();
-    final ctx = _audioCtx!;
-    final osc = ctx.createOscillator();
-    final gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = _freqAlvo;
-    const duracao = 1.5;
-    final now = ctx.currentTime;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.35, now + 0.02);
-    gain.gain.setValueAtTime(0.35, now + duracao - 0.08);
-    gain.gain.linearRampToValueAtTime(0, now + duracao);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    if (_destinoGravacao != null) gain.connect(_destinoGravacao!);
-    osc.start(now);
-    osc.stop(now + duracao);
+    _tocarVogal(_freqAlvo, _vogalAfinador);
   }
 
   // ---------- GRAVAÇÃO DO MIX (mic + notas) ----------
@@ -534,7 +588,8 @@ class _AfinadorAppState extends State<AfinadorApp> {
     _freqAlvo = n.freq;
     _notaAlvo = n.nome;
     final dur = 60000 / _bpm / 1000 * 0.8;
-    _tocarCue(n.freq, dur: dur);
+    final vogal = _vogalDaNota(i);
+    _tocarVogal(n.freq, vogal, dur: dur);
   }
 
   void _avaliarJanela(NotaSequencia alvo) {
@@ -735,7 +790,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              const Text('📋 Notas da sequência',
+              const Text('📋 Notas da escala',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const Spacer(),
               Text('${seq.length} notas',
@@ -839,8 +894,8 @@ class _AfinadorAppState extends State<AfinadorApp> {
           appBar: AppBar(
             title: const Text('Afinador Vocal'),
             bottom: const TabBar(tabs: [
-              Tab(text: '🎯 Afinador'),
-              Tab(text: '🎵 Sequência'),
+              Tab(text: ' Afinador'),
+              Tab(text: ' Escala'),
             ]),
           ),
           body: TabBarView(children: [
@@ -909,10 +964,38 @@ class _AfinadorAppState extends State<AfinadorApp> {
                 Text('${_freqAlvo.toStringAsFixed(2)} Hz',
                     style: const TextStyle(fontSize: 18, color: Colors.grey)),
                 const SizedBox(height: 16),
+                const Text('🗣 Vogal para cantar',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 8),
+                Row(children: [
+                  for (final v in vogais)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ElevatedButton(
+                          onPressed: () => setState(() => _vogalAfinador = v),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            backgroundColor: _vogalAfinador == v
+                                ? Colors.purple
+                                : Colors.grey.shade200,
+                            foregroundColor: _vogalAfinador == v
+                                ? Colors.white
+                                : Colors.black87,
+                            shape: const CircleBorder(),
+                          ),
+                          child: Text(v,
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ),
+                ]),
+                const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: _tocarNota,
                   icon: const Icon(Icons.volume_up),
-                  label: const Text('Tocar nota'),
+                  label: Text('Tocar vogal "${_vogalAfinador}"'),
                   style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14)),
                 ),
@@ -978,7 +1061,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(children: [
-                const Text('Sequência de notas',
+                const Text('Escala de notas',
                     style: TextStyle(fontSize: 14, color: Colors.grey)),
                 const SizedBox(height: 12),
                 _buildDropdownEscalas(emProgresso),
@@ -1033,7 +1116,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                     ),
                 ]),
                 const SizedBox(height: 4),
-                Text('A sequência começa em $_notaRaiz no registro $_registroVocal',
+                Text('A escala começa em $_notaRaiz no registro $_registroVocal',
                     style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 const SizedBox(height: 16),
 
@@ -1166,7 +1249,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                 ElevatedButton.icon(
                   onPressed: emProgresso ? null : _ouvirSequencia,
                   icon: const Icon(Icons.headphones),
-                  label: const Text('🎧 Ouvir sequência'),
+                  label: const Text('🎧 Ouvir escala'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     backgroundColor: Colors.teal,
@@ -1180,7 +1263,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                   icon: Icon(emProgresso ? Icons.stop : Icons.mic),
                   label: Text(emProgresso
                       ? 'Parar'
-                      : '🎤 Validar sequência'),
+                      : '🎤 Validar escala'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     backgroundColor: emProgresso ? Colors.red : Colors.blue,
@@ -1253,7 +1336,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                     Column(children: [
                       const Icon(Icons.headphones, color: Colors.teal, size: 48),
                       const SizedBox(height: 8),
-                      const Text('Ouvindo sequência...',
+                      const Text('Ouvindo escala...',
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.bold)),
                       Text(
@@ -1272,7 +1355,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                     const Column(children: [
                       Icon(Icons.check_circle, color: Colors.green, size: 48),
                       SizedBox(height: 8),
-                      Text('Sequência concluída!',
+                      Text('Escala concluída!',
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.bold)),
                     ]),
