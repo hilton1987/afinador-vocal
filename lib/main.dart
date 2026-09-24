@@ -24,6 +24,14 @@ const Map<String, List<double>> formantes = {
   'U': [300, 870, 2240],
 };
 
+// ====== PALETA "TECLADO VIRTUAL" ======
+const Color pianoWhite = Color(0xFFFFFFFF);
+const Color pianoIce = Color(0xFFF5F5F5);
+const Color pianoBlack = Color(0xFF111111);
+const Color pianoGray = Color(0xFF555555);
+const Color pianoCorrect = Color(0xFF22C55E);
+const Color pianoWrong = Color(0xFFEF4444);
+
 enum Dificuldade {
   iniciante('Iniciantes', 25, 50, 'Iniciante'),
   amador('Amadores', 15, 30, 'Amador'),
@@ -169,7 +177,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
   int _oitava = 4;
   String _notaAlvo = 'F4';
   double _freqAlvo = 349.23;
-  String _vogalAfinador = 'A'; // Vogal selecionada no afinador
+  String _vogalAfinador = 'A';
 
   Dificuldade _dificuldade = Dificuldade.amador;
 
@@ -264,14 +272,12 @@ class _AfinadorAppState extends State<AfinadorApp> {
     setState(() {});
   }
 
-  // Configura o microfone e o destino de MIX (mic + notas)
   Future<void> _setupMicrofone() async {
     _audioCtx ??= web.AudioContext();
     _stream = await web.window.navigator.mediaDevices
         .getUserMedia(web.MediaStreamConstraints(audio: true.toJS))
         .toDart;
 
-    // Cria o destino que vai MISTURAR mic + notas
     _destinoGravacao = _audioCtx!.createMediaStreamDestination();
 
     final source = _audioCtx!.createMediaStreamSource(_stream!);
@@ -279,7 +285,6 @@ class _AfinadorAppState extends State<AfinadorApp> {
     _analyser!.fftSize = 2048;
     source.connect(_analyser!);
 
-    // MIC vai para o destino de gravação
     source.connect(_destinoGravacao!);
 
     _dataArray = Float32List(2048);
@@ -318,18 +323,15 @@ class _AfinadorAppState extends State<AfinadorApp> {
     osc.stop(now + dur);
   }
 
-  // Síntese de vogal por formantes
   void _tocarVogal(double freq, String vogal, {double dur = 1.5}) {
     final ctx = _audioCtx!;
     final now = ctx.currentTime;
     final form = formantes[vogal]!;
 
-    // Oscilador principal (fonte sonora)
     final osc = ctx.createOscillator();
     osc.type = 'sawtooth';
     osc.frequency.value = freq;
 
-    // 3 filtros bandpass para os formantes
     final f1 = ctx.createBiquadFilter();
     f1.type = 'bandpass';
     f1.frequency.value = form[0];
@@ -345,7 +347,6 @@ class _AfinadorAppState extends State<AfinadorApp> {
     f3.frequency.value = form[2];
     f3.Q.value = 10;
 
-    // Gains para cada formante
     final g1 = ctx.createGain();
     g1.gain.value = 1.0;
     final g2 = ctx.createGain();
@@ -353,14 +354,12 @@ class _AfinadorAppState extends State<AfinadorApp> {
     final g3 = ctx.createGain();
     g3.gain.value = 0.6;
 
-    // Gain master com envelope
     final masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0, now);
     masterGain.gain.linearRampToValueAtTime(0.25, now + 0.05);
-    masterGain.gain.setValueAtTime(0.25, now + dur - 0.1);
+    masterGain.setValueAtTime(0.25, now + dur - 0.1);
     masterGain.gain.linearRampToValueAtTime(0, now + dur);
 
-    // Conectar: osc -> filtros -> gains -> master -> destino
     osc.connect(f1);
     osc.connect(f2);
     osc.connect(f3);
@@ -382,11 +381,9 @@ class _AfinadorAppState extends State<AfinadorApp> {
     _tocarVogal(_freqAlvo, _vogalAfinador);
   }
 
-  // ---------- GRAVAÇÃO DO MIX (mic + notas) ----------
   void _iniciarGravacao() {
     if (_stream == null || _destinoGravacao == null || _mimeType.isEmpty) return;
 
-    // Limpa gravação anterior
     if (_audioUrl != null) {
       web.URL.revokeObjectURL(_audioUrl!);
       _audioUrl = null;
@@ -454,7 +451,6 @@ class _AfinadorAppState extends State<AfinadorApp> {
     anchor.remove();
   }
 
-  // ---------- DETECÇÃO ----------
   void _processar(double freq) {
     final midi = 69 + 12 * (math.log(freq / 440.0) / math.ln2);
     final midiRounded = midi.round();
@@ -655,9 +651,9 @@ class _AfinadorAppState extends State<AfinadorApp> {
 
   Color _corDesvio(double desvio) {
     final abs = desvio.abs();
-    if (abs <= _dificuldade.verde) return Colors.green;
+    if (abs <= _dificuldade.verde) return pianoCorrect;
     if (abs <= _dificuldade.laranja) return Colors.orange;
-    return Colors.red;
+    return pianoWrong;
   }
 
   String _textoDesvio(double desvio) {
@@ -680,9 +676,9 @@ class _AfinadorAppState extends State<AfinadorApp> {
   Color _corStatus(double cents) {
     final d = _dificuldade;
     final abs = cents.abs();
-    if (abs <= d.verde) return Colors.green;
+    if (abs <= d.verde) return pianoCorrect;
     if (abs <= d.laranja) return Colors.orange;
-    return Colors.red;
+    return pianoWrong;
   }
 
   Widget _buildRegra() {
@@ -691,7 +687,8 @@ class _AfinadorAppState extends State<AfinadorApp> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        color: pianoWhite,
+        border: Border.all(color: pianoBlack, width: 1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -699,15 +696,15 @@ class _AfinadorAppState extends State<AfinadorApp> {
         children: [
           Row(children: [
             const Text('📏 Como está o desvio?',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: pianoBlack)),
             const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+                color: pianoIce,
                 borderRadius: BorderRadius.circular(10)),
               child: Text(d.subtitulo,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  style: const TextStyle(fontSize: 11, color: pianoGray)),
             ),
           ]),
           const SizedBox(height: 12),
@@ -716,15 +713,19 @@ class _AfinadorAppState extends State<AfinadorApp> {
             onPressed: (i) =>
                 setState(() => _dificuldade = Dificuldade.values[i]),
             constraints: const BoxConstraints(minHeight: 36),
+            selectedColor: pianoWhite,
+            fillColor: pianoBlack,
+            color: pianoBlack,
+            borderColor: pianoBlack,
             children: Dificuldade.values
                 .map((e) => Text(e.nome, style: const TextStyle(fontSize: 13)))
                 .toList(),
           ),
           const SizedBox(height: 14),
           Row(children: [
-            _ruleItem(Colors.red, '> ${d.laranja} cents', 'Desafinado'),
+            _ruleItem(pianoWrong, '> ${d.laranja} cents', 'Desafinado'),
             _ruleItem(Colors.orange, '${d.verde}–${d.laranja}', 'Quase lá'),
-            _ruleItem(Colors.green, 'até ±${d.verde}', 'Afinado ✓'),
+            _ruleItem(pianoCorrect, 'até ±${d.verde}', 'Afinado ✓'),
           ]),
           const SizedBox(height: 10),
           SizedBox(
@@ -736,28 +737,28 @@ class _AfinadorAppState extends State<AfinadorApp> {
               final wVermelho = (w / 2) - wVerde - wLaranja;
               return Stack(children: [
                 Row(children: [
-                  Expanded(child: Container(color: Colors.red.shade300)),
-                  Container(width: wVermelho, color: Colors.red.shade300),
-                  Container(width: wLaranja, color: Colors.orange.shade300),
-                  Container(width: wVerde, color: Colors.green.shade300),
-                  Container(width: wVerde, color: Colors.green.shade300),
-                  Container(width: wLaranja, color: Colors.orange.shade300),
-                  Container(width: wVermelho, color: Colors.red.shade300),
-                  Expanded(child: Container(color: Colors.red.shade300)),
+                  Expanded(child: Container(color: pianoWrong.withOpacity(0.5))),
+                  Container(width: wVermelho, color: pianoWrong.withOpacity(0.5)),
+                  Container(width: wLaranja, color: Colors.orange.withOpacity(0.5)),
+                  Container(width: wVerde, color: pianoCorrect.withOpacity(0.5)),
+                  Container(width: wVerde, color: pianoCorrect.withOpacity(0.5)),
+                  Container(width: wLaranja, color: Colors.orange.withOpacity(0.5)),
+                  Container(width: wVermelho, color: pianoWrong.withOpacity(0.5)),
+                  Expanded(child: Container(color: pianoWrong.withOpacity(0.5))),
                 ]),
-                Center(child: Container(width: 2, color: Colors.black)),
+                Center(child: Container(width: 2, color: pianoBlack)),
               ]);
             }),
           ),
           const SizedBox(height: 4),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('-$escala', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-            const Text('0', style: TextStyle(fontSize: 10, color: Colors.grey)),
-            Text('+$escala', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            Text('-$escala', style: const TextStyle(fontSize: 10, color: pianoGray)),
+            const Text('0', style: TextStyle(fontSize: 10, color: pianoGray)),
+            Text('+$escala', style: const TextStyle(fontSize: 10, color: pianoGray)),
           ]),
           const SizedBox(height: 8),
           const Text('↑ cante + grave  ·  ↓ cante + agudo',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
+              style: TextStyle(fontSize: 12, color: pianoGray)),
         ],
       ),
     );
@@ -772,10 +773,10 @@ class _AfinadorAppState extends State<AfinadorApp> {
           color: cor,
           child: Text(faixa,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 12)),
+              style: const TextStyle(color: pianoWhite, fontSize: 12)),
         ),
         const SizedBox(height: 2),
-        Text(rotulo, style: const TextStyle(fontSize: 11)),
+        Text(rotulo, style: const TextStyle(fontSize: 11, color: pianoBlack)),
       ]),
     );
   }
@@ -783,75 +784,76 @@ class _AfinadorAppState extends State<AfinadorApp> {
   Widget _buildListaNotasSequencia() {
     final seq = _gerarSequencia();
     final emAndamento = _fase == FaseSequencia.ouvindo || _fase == FaseSequencia.tocando;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              const Text('📋 Notas da escala',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              const Spacer(),
-              Text('${seq.length} notas',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ]),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: List.generate(seq.length, (i) {
-                final n = seq[i];
-                final isAtual = emAndamento && i == _indiceNotaAtual;
-                final isPassada = emAndamento && i < _indiceNotaAtual;
-                final isFutura = emAndamento && i > _indiceNotaAtual;
-                Color cor;
-                if (isAtual) {
-                  cor = Colors.teal;
-                } else if (isPassada) {
-                  cor = Colors.grey.shade400;
-                } else if (isFutura) {
-                  cor = Colors.grey.shade300;
-                } else {
-                  cor = Colors.grey.shade200;
-                }
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: cor,
-                    borderRadius: BorderRadius.circular(8),
-                    border: isAtual
-                        ? Border.all(color: Colors.teal.shade700, width: 2)
-                        : null,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${i + 1}.',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: isAtual ? Colors.white : Colors.grey.shade700)),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: pianoWhite,
+        border: Border.all(color: pianoBlack, width: 1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Text('📋 Notas da escala',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: pianoBlack)),
+            const Spacer(),
+            Text('${seq.length} notas',
+                style: const TextStyle(fontSize: 12, color: pianoGray)),
+          ]),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: List.generate(seq.length, (i) {
+              final n = seq[i];
+              final isAtual = emAndamento && i == _indiceNotaAtual;
+              final isPassada = emAndamento && i < _indiceNotaAtual;
+              final isFutura = emAndamento && i > _indiceNotaAtual;
+              Color cor;
+              if (isAtual) {
+                cor = pianoBlack;
+              } else if (isPassada) {
+                cor = pianoGray.withOpacity(0.3);
+              } else if (isFutura) {
+                cor = pianoIce;
+              } else {
+                cor = pianoWhite;
+              }
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: cor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: pianoBlack, width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${i + 1}.',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isAtual ? pianoWhite : pianoGray)),
+                    const SizedBox(width: 4),
+                    Text(n.nome,
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isAtual ? pianoWhite : pianoBlack)),
+                    if (_modoVogal == ModoVogal.todas) ...[
                       const SizedBox(width: 4),
-                      Text(n.nome,
+                      Text(_vogalDaNota(i),
                           style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: isAtual ? Colors.white : Colors.black87)),
-                      if (_modoVogal == ModoVogal.todas) ...[
-                        const SizedBox(width: 4),
-                        Text(_vogalDaNota(i),
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isAtual ? Colors.white : Colors.purple)),
-                      ],
+                              color: isAtual ? pianoWhite : pianoBlack)),
                     ],
-                  ),
-                );
-              }),
-            ),
-          ],
-        ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
       ),
     );
   }
@@ -861,7 +863,17 @@ class _AfinadorAppState extends State<AfinadorApp> {
       value: _sequenciaSelecionada,
       isExpanded: true,
       decoration: const InputDecoration(
-          labelText: 'Exercício / Escala', border: OutlineInputBorder()),
+          labelText: 'Exercício / Escala',
+          border: OutlineInputBorder(
+            borderSide: BorderSide(color: pianoBlack, width: 1),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: pianoBlack, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: pianoBlack, width: 2),
+          )),
+      dropdownColor: pianoWhite,
       items: [
         for (final entry in _categorias.entries) ...[
           DropdownMenuItem<String>(
@@ -869,13 +881,13 @@ class _AfinadorAppState extends State<AfinadorApp> {
             child: Text(entry.key,
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.deepOrange,
+                    color: pianoBlack,
                     fontSize: 13)),
           ),
           for (final nome in entry.value.keys)
             DropdownMenuItem<String>(
               value: nome,
-              child: Text(nome, style: const TextStyle(fontSize: 14)),
+              child: Text(nome, style: const TextStyle(fontSize: 14, color: pianoBlack)),
             ),
         ],
       ],
@@ -885,146 +897,166 @@ class _AfinadorAppState extends State<AfinadorApp> {
     );
   }
 
-@override
-Widget build(BuildContext context) {
-  return MaterialApp(
- theme: ThemeData(
-  cardTheme: CardThemeData(
-    color: Colors.white.withOpacity(0.88),
-    elevation: 4,
-  ),
-),
-
-    home: DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        extendBodyBehindAppBar: true,
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.black54,
-          title: const Text('Afinador Vocal'),
-          bottom: const TabBar(tabs: [
-            Tab(text: ' Afinador'),
-            Tab(text: ' Escala'),
-          ]),
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: ThemeData(
+        scaffoldBackgroundColor: pianoWhite,
+        cardTheme: CardThemeData(
+          color: pianoWhite,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: pianoBlack, width: 1),
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
-        body: Stack(
-          children: [
-            // 🖼️ IMAGEM DE FUNDO
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/og-image.png'),
-                  fit: BoxFit.cover,
-                ),
-              ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: pianoBlack,
+          foregroundColor: pianoWhite,
+          elevation: 0,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: pianoBlack,
+            foregroundColor: pianoWhite,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
-            // 📱 CONTEÚDO POR CIMA
-            TabBarView(children: [
-              _buildAbaAfinador(),
-              _buildAbaSequencia(),
-            ]),
-          ],
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: const OutlineInputBorder(
+            borderSide: BorderSide(color: pianoBlack, width: 1),
+          ),
+          enabledBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: pianoBlack, width: 1),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: pianoBlack, width: 2),
+          ),
         ),
       ),
-    ),
-  );
-}
+      home: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          backgroundColor: pianoWhite,
+          appBar: AppBar(
+            backgroundColor: pianoBlack,
+            title: const Text('Afinador Vocal', style: TextStyle(color: pianoWhite)),
+            bottom: TabBar(
+              indicatorColor: pianoWhite,
+              labelColor: pianoWhite,
+              unselectedLabelColor: pianoGray,
+              tabs: const [
+                Tab(text: 'Afinador'),
+                Tab(text: 'Escala'),
+              ],
+            ),
+          ),
+          body: TabBarView(children: [
+            _buildAbaAfinador(),
+            _buildAbaSequencia(),
+          ]),
+        ),
+      ),
+    );
+  }
 
   Widget _buildAbaAfinador() {
     final desvio = _desvioAlvo;
     final cor = _corDesvio(desvio);
     final seta = _textoDesvio(desvio);
     return SingleChildScrollView(
-  padding: const EdgeInsets.fromLTRB(16, 100, 16, 16), // topo maior pra não ficar atrás da AppBar
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildRegra(),
           const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(children: [
-                const Text('Nota de referência',
-                    style: TextStyle(fontSize: 14, color: Colors.grey)),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _notaSimples,
-                      decoration: const InputDecoration(
-                          labelText: 'Nota', border: OutlineInputBorder()),
-                      items: noteNames
-                          .map((n) => DropdownMenuItem(value: n, child: Text(n)))
-                          .toList(),
-                      onChanged: (v) {
-                        _notaSimples = v!;
-                        _atualizarAlvo();
-                      },
-                    ),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: pianoWhite,
+              border: Border.all(color: pianoBlack, width: 1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(children: [
+              const Text('Nota de referência',
+                  style: TextStyle(fontSize: 14, color: pianoGray)),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _notaSimples,
+                    decoration: const InputDecoration(labelText: 'Nota'),
+                    items: noteNames
+                        .map((n) => DropdownMenuItem(value: n, child: Text(n, style: const TextStyle(color: pianoBlack))))
+                        .toList(),
+                    onChanged: (v) {
+                      _notaSimples = v!;
+                      _atualizarAlvo();
+                    },
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: _oitava,
-                      decoration: const InputDecoration(
-                          labelText: 'Oitava', border: OutlineInputBorder()),
-                      items: [
-                        for (var o = 0; o <= 8; o++)
-                          DropdownMenuItem(value: o, child: Text('$o'))
-                      ],
-                      onChanged: (v) {
-                        _oitava = v!;
-                        _atualizarAlvo();
-                      },
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: _oitava,
+                    decoration: const InputDecoration(labelText: 'Oitava'),
+                    items: [
+                      for (var o = 0; o <= 8; o++)
+                        DropdownMenuItem(value: o, child: Text('$o', style: const TextStyle(color: pianoBlack)))
+                    ],
+                    onChanged: (v) {
+                      _oitava = v!;
+                      _atualizarAlvo();
+                    },
                   ),
-                ]),
-                const SizedBox(height: 20),
-                Text(_notaAlvo,
-                    style: const TextStyle(
-                        fontSize: 72, fontWeight: FontWeight.bold)),
-                Text('${_freqAlvo.toStringAsFixed(2)} Hz',
-                    style: const TextStyle(fontSize: 18, color: Colors.grey)),
-                const SizedBox(height: 16),
-                const Text('🗣 Vogal para cantar',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 8),
-                Row(children: [
-                  for (final v in vogais)
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ElevatedButton(
-                          onPressed: () => setState(() => _vogalAfinador = v),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            backgroundColor: _vogalAfinador == v
-                                ? Colors.purple
-                                : Colors.grey.shade200,
-                            foregroundColor: _vogalAfinador == v
-                                ? Colors.white
-                                : Colors.black87,
-                            shape: const CircleBorder(),
-                          ),
-                          child: Text(v,
-                              style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ),
-                ]),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: _tocarNota,
-                  icon: const Icon(Icons.volume_up),
-                  label: Text('Tocar vogal "${_vogalAfinador}"'),
-                  style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14)),
                 ),
               ]),
-            ),
+              const SizedBox(height: 20),
+              Text(_notaAlvo,
+                  style: const TextStyle(
+                      fontSize: 72, fontWeight: FontWeight.bold, color: pianoBlack)),
+              Text('${_freqAlvo.toStringAsFixed(2)} Hz',
+                  style: const TextStyle(fontSize: 18, color: pianoGray)),
+              const SizedBox(height: 16),
+              const Text('🗣 Vogal para cantar',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: pianoBlack)),
+              const SizedBox(height: 8),
+              Row(children: [
+                for (final v in vogais)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ElevatedButton(
+                        onPressed: () => setState(() => _vogalAfinador = v),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          backgroundColor: _vogalAfinador == v ? pianoBlack : pianoWhite,
+                          foregroundColor: _vogalAfinador == v ? pianoWhite : pianoBlack,
+                          shape: const CircleBorder(),
+                          side: const BorderSide(color: pianoBlack, width: 1),
+                        ),
+                        child: Text(v,
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ),
+              ]),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _tocarNota,
+                icon: const Icon(Icons.volume_up),
+                label: Text('Tocar vogal "${_vogalAfinador}"'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: pianoBlack,
+                  foregroundColor: pianoWhite,
+                ),
+              ),
+            ]),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
@@ -1033,38 +1065,41 @@ Widget build(BuildContext context) {
             label: Text(_ouvindo ? 'Parar de ouvir' : 'Começar a cantar'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: _ouvindo ? Colors.red : Colors.blue,
-              foregroundColor: Colors.white,
+              backgroundColor: _ouvindo ? pianoWrong : pianoBlack,
+              foregroundColor: pianoWhite,
             ),
           ),
           const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(children: [
-                const Text('Você cantou',
-                    style: TextStyle(fontSize: 14, color: Colors.grey)),
-                const SizedBox(height: 8),
-                Text(_notaCantada,
-                    style: const TextStyle(
-                        fontSize: 64, fontWeight: FontWeight.bold)),
-                Text(
-                    _freqCantada > 0
-                        ? '${_freqCantada.toStringAsFixed(1)} Hz'
-                        : '—',
-                    style: const TextStyle(fontSize: 18, color: Colors.grey)),
-                const SizedBox(height: 8),
-                Text(
-                  _freqCantada > 0
-                      ? '${desvio.toStringAsFixed(0)} cents · $seta'
-                      : 'Cante para ver o resultado',
-                  style: TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold, color: cor),
-                ),
-                const SizedBox(height: 16),
-                _buildMedidor(desvio),
-              ]),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: pianoWhite,
+              border: Border.all(color: pianoBlack, width: 1),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Column(children: [
+              const Text('Você cantou',
+                  style: TextStyle(fontSize: 14, color: pianoGray)),
+              const SizedBox(height: 8),
+              Text(_notaCantada,
+                  style: const TextStyle(
+                      fontSize: 64, fontWeight: FontWeight.bold, color: pianoBlack)),
+              Text(
+                  _freqCantada > 0
+                      ? '${_freqCantada.toStringAsFixed(1)} Hz'
+                      : '—',
+                  style: const TextStyle(fontSize: 18, color: pianoGray)),
+              const SizedBox(height: 8),
+              Text(
+                _freqCantada > 0
+                    ? '${desvio.toStringAsFixed(0)} cents · $seta'
+                    : 'Cante para ver o resultado',
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.bold, color: cor),
+              ),
+              const SizedBox(height: 16),
+              _buildMedidor(desvio),
+            ]),
           ),
         ],
       ),
@@ -1077,225 +1112,224 @@ Widget build(BuildContext context) {
         _fase == FaseSequencia.tocando ||
         _fase == FaseSequencia.ouvindo;
     return SingleChildScrollView(
-   padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(children: [
-                const Text('Escala de notas',
-                    style: TextStyle(fontSize: 14, color: Colors.grey)),
-                const SizedBox(height: 12),
-                _buildDropdownEscalas(emProgresso),
-                const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: pianoWhite,
+              border: Border.all(color: pianoBlack, width: 1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(children: [
+              const Text('Escala de notas',
+                  style: TextStyle(fontSize: 14, color: pianoGray)),
+              const SizedBox(height: 12),
+              _buildDropdownEscalas(emProgresso),
+              const SizedBox(height: 16),
 
-                const Text('🎼 Tom base (tônica)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _notaRaiz,
-                      decoration: const InputDecoration(
-                          labelText: 'Nota raiz', border: OutlineInputBorder()),
-                      items: noteNames
-                          .map((n) => DropdownMenuItem(value: n, child: Text(n)))
-                          .toList(),
-                      onChanged: emProgresso
-                          ? null
-                          : (v) => setState(() => _notaRaiz = v!),
-                    ),
+              const Text('🎼 Tom base (tônica)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: pianoBlack)),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _notaRaiz,
+                    decoration: const InputDecoration(labelText: 'Nota raiz'),
+                    items: noteNames
+                        .map((n) => DropdownMenuItem(value: n, child: Text(n, style: const TextStyle(color: pianoBlack))))
+                        .toList(),
+                    onChanged: emProgresso
+                        ? null
+                        : (v) => setState(() => _notaRaiz = v!),
                   ),
-                ]),
-                const SizedBox(height: 12),
-
-                const Text('🎤 Registro vocal',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 8),
-                Row(children: [
-                  for (final reg in registrosVocais)
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 3),
-                        child: ElevatedButton(
-                          onPressed: emProgresso
-                              ? null
-                              : () => setState(() => _registroVocal = reg),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            backgroundColor: _registroVocal == reg
-                                ? Colors.deepOrange
-                                : Colors.grey.shade200,
-                            foregroundColor: _registroVocal == reg
-                                ? Colors.white
-                                : Colors.black87,
-                          ),
-                          child: Text('Reg. $reg',
-                              style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ),
-                ]),
-                const SizedBox(height: 4),
-                Text('A escala começa em $_notaRaiz no registro $_registroVocal',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                const SizedBox(height: 16),
-
-                const Text('🗣 Vogal para cantar',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 8),
-                ToggleButtons(
-                  isSelected: [
-                    _modoVogal == ModoVogal.fixa,
-                    _modoVogal == ModoVogal.todas,
-                  ],
-                  onPressed: emProgresso
-                      ? null
-                      : (i) => setState(() =>
-                            _modoVogal = i == 0 ? ModoVogal.fixa : ModoVogal.todas),
-                  constraints: const BoxConstraints(minHeight: 32),
-                  children: const [
-                    Text('Fixa', style: TextStyle(fontSize: 13)),
-                    Text('Todas (A,E,I,O,U)', style: TextStyle(fontSize: 13)),
-                  ],
                 ),
-                const SizedBox(height: 8),
-                if (_modoVogal == ModoVogal.fixa)
-                  Row(children: [
-                    for (final v in vogais)
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: ElevatedButton(
-                            onPressed: emProgresso
-                                ? null
-                                : () => setState(() => _vogalSelecionada = v),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              backgroundColor: _vogalSelecionada == v
-                                  ? Colors.purple
-                                  : Colors.grey.shade200,
-                              foregroundColor: _vogalSelecionada == v
-                                  ? Colors.white
-                                  : Colors.black87,
-                              shape: const CircleBorder(),
-                            ),
-                            child: Text(v,
-                                style: const TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold)),
-                          ),
+              ]),
+              const SizedBox(height: 12),
+
+              const Text('🎤 Registro vocal',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: pianoBlack)),
+              const SizedBox(height: 8),
+              Row(children: [
+                for (final reg in registrosVocais)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: ElevatedButton(
+                        onPressed: emProgresso
+                            ? null
+                            : () => setState(() => _registroVocal = reg),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          backgroundColor: _registroVocal == reg ? pianoBlack : pianoWhite,
+                          foregroundColor: _registroVocal == reg ? pianoWhite : pianoBlack,
+                          side: const BorderSide(color: pianoBlack, width: 1),
                         ),
+                        child: Text('Reg. $reg',
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
-                  ])
-                else
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Row(children: [
-                      Icon(Icons.info, color: Colors.purple, size: 18),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                            'Cada nota será cantada com uma vogal diferente (A, E, I, O, U)',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.purple)),
-                      ),
-                    ]),
                   ),
-                const SizedBox(height: 16),
+              ]),
+              const SizedBox(height: 4),
+              Text('A escala começa em $_notaRaiz no registro $_registroVocal',
+                  style: const TextStyle(fontSize: 11, color: pianoGray)),
+              const SizedBox(height: 16),
 
-                const Text('⚡ Velocidade do exercício',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 8),
-
+              const Text('🗣 Vogal para cantar',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: pianoBlack)),
+              const SizedBox(height: 8),
+              ToggleButtons(
+                isSelected: [
+                  _modoVogal == ModoVogal.fixa,
+                  _modoVogal == ModoVogal.todas,
+                ],
+                onPressed: emProgresso
+                    ? null
+                    : (i) => setState(() =>
+                          _modoVogal = i == 0 ? ModoVogal.fixa : ModoVogal.todas),
+                constraints: const BoxConstraints(minHeight: 32),
+                selectedColor: pianoWhite,
+                fillColor: pianoBlack,
+                color: pianoBlack,
+                borderColor: pianoBlack,
+                children: const [
+                  Text('Fixa', style: TextStyle(fontSize: 13)),
+                  Text('Todas (A,E,I,O,U)', style: TextStyle(fontSize: 13)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (_modoVogal == ModoVogal.fixa)
                 Row(children: [
-                  for (final entry in _presetsBpm.entries)
+                  for (final v in vogais)
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: ElevatedButton(
                           onPressed: emProgresso
                               ? null
-                              : () => setState(() => _bpm = entry.value),
+                              : () => setState(() => _vogalSelecionada = v),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 10),
-                            backgroundColor: _bpm == entry.value
-                                ? Colors.blue
-                                : Colors.grey.shade200,
-                            foregroundColor: _bpm == entry.value
-                                ? Colors.white
-                                : Colors.black87,
+                            backgroundColor: _vogalSelecionada == v ? pianoBlack : pianoWhite,
+                            foregroundColor: _vogalSelecionada == v ? pianoWhite : pianoBlack,
+                            shape: const CircleBorder(),
+                            side: const BorderSide(color: pianoBlack, width: 1),
                           ),
-                          child: Text(entry.key,
-                              style: const TextStyle(fontSize: 12)),
+                          child: Text(v,
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ),
-                ]),
-                const SizedBox(height: 12),
+                ])
+              else
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: pianoIce,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: pianoBlack, width: 1),
+                  ),
+                  child: const Row(children: [
+                    Icon(Icons.info, color: pianoBlack, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                          'Cada nota será cantada com uma vogal diferente (A, E, I, O, U)',
+                          style: TextStyle(fontSize: 12, color: pianoBlack)),
+                    ),
+                  ]),
+                ),
+              const SizedBox(height: 16),
 
-                Row(children: [
-                  const Icon(Icons.speed, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('BPM'),
+              const Text('⚡ Velocidade do exercício',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: pianoBlack)),
+              const SizedBox(height: 8),
+
+              Row(children: [
+                for (final entry in _presetsBpm.entries)
                   Expanded(
-                    child: Slider(
-                      value: _bpm,
-                      min: 40,
-                      max: 140,
-                      divisions: 20,
-                      label: '${_bpm.round()}',
-                      onChanged: emProgresso
-                          ? null
-                          : (v) => setState(() => _bpm = v),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ElevatedButton(
+                        onPressed: emProgresso
+                            ? null
+                            : () => setState(() => _bpm = entry.value),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          backgroundColor: _bpm == entry.value ? pianoBlack : pianoWhite,
+                          foregroundColor: _bpm == entry.value ? pianoWhite : pianoBlack,
+                          side: const BorderSide(color: pianoBlack, width: 1),
+                        ),
+                        child: Text(entry.key,
+                            style: const TextStyle(fontSize: 12)),
+                      ),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8)),
-                    child: Text('${_bpm.round()}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                            fontSize: 16)),
-                  ),
-                ]),
-                const SizedBox(height: 16),
+              ]),
+              const SizedBox(height: 12),
 
-                ElevatedButton.icon(
-                  onPressed: emProgresso ? null : _ouvirSequencia,
-                  icon: const Icon(Icons.headphones),
-                  label: const Text('🎧 Ouvir escala'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: Colors.teal,
-                    foregroundColor: Colors.white,
+              Row(children: [
+                const Icon(Icons.speed, size: 20, color: pianoBlack),
+                const SizedBox(width: 8),
+                const Text('BPM', style: TextStyle(color: pianoBlack)),
+                Expanded(
+                  child: Slider(
+                    value: _bpm,
+                    min: 40,
+                    max: 140,
+                    divisions: 20,
+                    label: '${_bpm.round()}',
+                    activeColor: pianoBlack,
+                    inactiveColor: pianoIce,
+                    onChanged: emProgresso
+                        ? null
+                        : (v) => setState(() => _bpm = v),
                   ),
                 ),
-                const SizedBox(height: 12),
-
-                ElevatedButton.icon(
-                  onPressed: emProgresso ? _parar : _iniciarSequencia,
-                  icon: Icon(emProgresso ? Icons.stop : Icons.mic),
-                  label: Text(emProgresso
-                      ? 'Parar'
-                      : '🎤 Validar escala'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: emProgresso ? Colors.red : Colors.blue,
-                    foregroundColor: Colors.white,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: pianoIce,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: pianoBlack, width: 1),
                   ),
+                  child: Text('${_bpm.round()}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: pianoBlack,
+                          fontSize: 16)),
                 ),
               ]),
-            ),
+              const SizedBox(height: 16),
+
+              ElevatedButton.icon(
+                onPressed: emProgresso ? null : _ouvirSequencia,
+                icon: const Icon(Icons.headphones),
+                label: const Text('🎧 Ouvir escala'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: pianoBlack,
+                  foregroundColor: pianoWhite,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              ElevatedButton.icon(
+                onPressed: emProgresso ? _parar : _iniciarSequencia,
+                icon: Icon(emProgresso ? Icons.stop : Icons.mic),
+                label: Text(emProgresso ? 'Parar' : '🎤 Validar escala'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: emProgresso ? pianoWrong : pianoBlack,
+                  foregroundColor: pianoWhite,
+                ),
+              ),
+            ]),
           ),
           const SizedBox(height: 16),
 
@@ -1303,145 +1337,154 @@ Widget build(BuildContext context) {
           const SizedBox(height: 16),
 
           if (_fase != FaseSequencia.parado) ...[
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(children: [
-                  if (_fase == FaseSequencia.contagem)
-                    Column(children: [
-                      Text('$_batidaContagem',
-                          style: const TextStyle(
-                              fontSize: 60, fontWeight: FontWeight.bold)),
-                      const Text('Prepare-se...',
-                          style: TextStyle(fontSize: 16, color: Colors.grey)),
-                    ])
-                  else if (_fase == FaseSequencia.tocando)
-                    Column(children: [
-                      const Text('Cante agora',
-                          style: TextStyle(fontSize: 14, color: Colors.grey)),
-                      Text(_notaAlvo,
-                          style: const TextStyle(
-                              fontSize: 72, fontWeight: FontWeight.bold)),
-                      Text(
-                          'Nota ${_indiceNotaAtual + 1} de ${_sequenciaAtual.length}',
-                          style: const TextStyle(
-                              fontSize: 16, color: Colors.grey)),
-                      const SizedBox(height: 8),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.purple.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                            'Cante a vogal "${_vogalDaNota(_indiceNotaAtual)}"',
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.purple)),
-                      ),
-                      const SizedBox(height: 12),
-                      LinearProgressIndicator(
-                          value: (_indiceNotaAtual + 1) / _sequenciaAtual.length),
-                      const SizedBox(height: 12),
-                      Text(_notaCantada,
-                          style: const TextStyle(
-                              fontSize: 36, fontWeight: FontWeight.bold)),
-                      Text(
-                        _freqCantada > 0
-                            ? '${_desvioAlvo.toStringAsFixed(0)} cents'
-                            : '—',
-                        style: TextStyle(
-                            fontSize: 18, color: _corDesvio(_desvioAlvo)),
-                      ),
-                    ])
-                  else if (_fase == FaseSequencia.ouvindo)
-                    Column(children: [
-                      const Icon(Icons.headphones, color: Colors.teal, size: 48),
-                      const SizedBox(height: 8),
-                      const Text('Ouvindo escala...',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text(
-                          'Nota ${_indiceNotaAtual + 1} de ${_sequenciaAtual.length}',
-                          style: const TextStyle(
-                              fontSize: 16, color: Colors.grey)),
-                      const SizedBox(height: 12),
-                      LinearProgressIndicator(
-                          value: (_indiceNotaAtual + 1) / _sequenciaAtual.length),
-                      const SizedBox(height: 12),
-                      Text(_notaAlvo,
-                          style: const TextStyle(
-                              fontSize: 56, fontWeight: FontWeight.bold)),
-                    ])
-                  else
-                    const Column(children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 48),
-                      SizedBox(height: 8),
-                      Text('Escala concluída!',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                    ]),
-                ]),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: pianoWhite,
+                border: Border.all(color: pianoBlack, width: 1),
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Column(children: [
+                if (_fase == FaseSequencia.contagem)
+                  Column(children: [
+                    Text('$_batidaContagem',
+                        style: const TextStyle(
+                            fontSize: 60, fontWeight: FontWeight.bold, color: pianoBlack)),
+                    const Text('Prepare-se...',
+                        style: TextStyle(fontSize: 16, color: pianoGray)),
+                  ])
+                else if (_fase == FaseSequencia.tocando)
+                  Column(children: [
+                    const Text('Cante agora',
+                        style: TextStyle(fontSize: 14, color: pianoGray)),
+                    Text(_notaAlvo,
+                        style: const TextStyle(
+                            fontSize: 72, fontWeight: FontWeight.bold, color: pianoBlack)),
+                    Text(
+                        'Nota ${_indiceNotaAtual + 1} de ${_sequenciaAtual.length}',
+                        style: const TextStyle(
+                            fontSize: 16, color: pianoGray)),
+                    const SizedBox(height: 8),
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: pianoBlack,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                          'Cante a vogal "${_vogalDaNota(_indiceNotaAtual)}"',
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: pianoWhite)),
+                    ),
+                    const SizedBox(height: 12),
+                    LinearProgressIndicator(
+                        value: (_indiceNotaAtual + 1) / _sequenciaAtual.length,
+                        backgroundColor: pianoIce,
+                        valueColor: const AlwaysStoppedAnimation<Color>(pianoBlack)),
+                    const SizedBox(height: 12),
+                    Text(_notaCantada,
+                        style: const TextStyle(
+                            fontSize: 36, fontWeight: FontWeight.bold, color: pianoBlack)),
+                    Text(
+                      _freqCantada > 0
+                          ? '${_desvioAlvo.toStringAsFixed(0)} cents'
+                          : '—',
+                      style: TextStyle(
+                          fontSize: 18, color: _corDesvio(_desvioAlvo)),
+                    ),
+                  ])
+                else if (_fase == FaseSequencia.ouvindo)
+                  Column(children: [
+                    const Icon(Icons.headphones, color: pianoBlack, size: 48),
+                    const SizedBox(height: 8),
+                    const Text('Ouvindo escala...',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold, color: pianoBlack)),
+                    Text(
+                        'Nota ${_indiceNotaAtual + 1} de ${_sequenciaAtual.length}',
+                        style: const TextStyle(
+                            fontSize: 16, color: pianoGray)),
+                    const SizedBox(height: 12),
+                    LinearProgressIndicator(
+                        value: (_indiceNotaAtual + 1) / _sequenciaAtual.length,
+                        backgroundColor: pianoIce,
+                        valueColor: const AlwaysStoppedAnimation<Color>(pianoBlack)),
+                    const SizedBox(height: 12),
+                    Text(_notaAlvo,
+                        style: const TextStyle(
+                            fontSize: 56, fontWeight: FontWeight.bold, color: pianoBlack)),
+                  ])
+                else
+                  const Column(children: [
+                    Icon(Icons.check_circle, color: pianoCorrect, size: 48),
+                    SizedBox(height: 8),
+                    Text('Escala concluída!',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold, color: pianoBlack)),
+                  ]),
+              ]),
             ),
             const SizedBox(height: 16),
           ],
 
-          // CARD DE GRAVAÇÃO
           if (_gravando || _audioUrl != null)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text('🎙 Gravação',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    if (_gravando)
-                      Row(children: [
-                        Icon(Icons.fiber_manual_record,
-                            color: Colors.red, size: 20),
-                        const SizedBox(width: 8),
-                        const Text('Gravando sua voz + notas...',
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red)),
-                      ])
-                    else if (_audioUrl != null)
-                      Column(children: [
-                        const Text('Gravação finalizada! (voz + notas)',
-                            style: TextStyle(fontSize: 15)),
-                        const SizedBox(height: 10),
-                        ElevatedButton.icon(
-                          onPressed: _ouvirGravacao,
-                          icon: const Icon(Icons.play_circle),
-                          label: const Text('🎧 Ouvir gravação'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                          ),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: pianoWhite,
+                border: Border.all(color: pianoBlack, width: 1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('🎙 Gravação',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold, color: pianoBlack)),
+                  const SizedBox(height: 12),
+                  if (_gravando)
+                    Row(children: [
+                      Icon(Icons.fiber_manual_record,
+                          color: pianoWrong, size: 20),
+                      const SizedBox(width: 8),
+                      const Text('Gravando sua voz + notas...',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: pianoWrong)),
+                    ])
+                  else if (_audioUrl != null)
+                    Column(children: [
+                      const Text('Gravação finalizada! (voz + notas)',
+                          style: TextStyle(fontSize: 15, color: pianoBlack)),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        onPressed: _ouvirGravacao,
+                        icon: const Icon(Icons.play_circle),
+                        label: const Text('🎧 Ouvir gravação'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: pianoBlack,
+                          foregroundColor: pianoWhite,
                         ),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: _baixarGravacao,
-                          icon: const Icon(Icons.download),
-                          label: Text('⬇️ Baixar áudio (.$_extensaoAudio)'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                          ),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: _baixarGravacao,
+                        icon: const Icon(Icons.download),
+                        label: Text('⬇️ Baixar áudio (.$_extensaoAudio)'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: pianoCorrect,
+                          foregroundColor: pianoWhite,
                         ),
-                      ]),
-                  ],
-                ),
+                      ),
+                    ]),
+                ],
               ),
             ),
           const SizedBox(height: 16),
@@ -1456,62 +1499,65 @@ Widget build(BuildContext context) {
     final certas = _resultados.where((r) => r.notaCerta).length;
     final afinadas = _resultados.where((r) => r.afinado).length;
     final total = _resultados.length;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Resultado',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 8),
-          Text('Notas certas: $certas/$total', style: const TextStyle(fontSize: 15)),
-          Text('Afinadas: $afinadas/$total', style: const TextStyle(fontSize: 15)),
-          const SizedBox(height: 12),
-          ..._resultados.asMap().entries.map((e) {
-            final i = e.key;
-            final r = e.value;
-            final cor = !r.cantou
-                ? Colors.grey
-                : (r.notaCerta && r.afinado
-                    ? Colors.green
-                    : (r.notaCerta ? Colors.orange : Colors.red));
-            final icone = !r.cantou
-                ? '·'
-                : (r.notaCerta && r.afinado
-                    ? '✓'
-                    : (r.notaCerta ? '~' : '✗'));
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(children: [
-                SizedBox(
-                    width: 40,
-                    child: Text('${i + 1}.',
-                        style: const TextStyle(color: Colors.grey))),
-                Expanded(
-                    child: Text(r.alvo,
-                        style: const TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(
-                    child: Text(r.cantada,
-                        style: const TextStyle(color: Colors.grey))),
-                if (r.cantou)
-                  Expanded(
-                      child: Text(
-                        r.notaCerta
-                            ? _statusRegra(r.cents.toDouble())
-                            : 'Nota errada',
-                        style: TextStyle(
-                            color: r.notaCerta ? _corStatus(r.cents.toDouble()) : Colors.red,
-                            fontWeight: FontWeight.bold),
-                      )),
-                Icon(Icons.circle, color: cor, size: 14),
-                const SizedBox(width: 4),
-                Text(icone,
-                    style:
-                        TextStyle(color: cor, fontWeight: FontWeight.bold)),
-              ]),
-            );
-          }),
-        ]),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: pianoWhite,
+        border: Border.all(color: pianoBlack, width: 1),
+        borderRadius: BorderRadius.circular(12),
       ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Resultado',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: pianoBlack)),
+        const SizedBox(height: 8),
+        Text('Notas certas: $certas/$total', style: const TextStyle(fontSize: 15, color: pianoBlack)),
+        Text('Afinadas: $afinadas/$total', style: const TextStyle(fontSize: 15, color: pianoBlack)),
+        const SizedBox(height: 12),
+        ..._resultados.asMap().entries.map((e) {
+          final i = e.key;
+          final r = e.value;
+          final cor = !r.cantou
+              ? pianoGray
+              : (r.notaCerta && r.afinado
+                  ? pianoCorrect
+                  : (r.notaCerta ? Colors.orange : pianoWrong));
+          final icone = !r.cantou
+              ? '·'
+              : (r.notaCerta && r.afinado
+                  ? '✓'
+                  : (r.notaCerta ? '~' : '✗'));
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(children: [
+              SizedBox(
+                  width: 40,
+                  child: Text('${i + 1}.',
+                      style: const TextStyle(color: pianoGray))),
+              Expanded(
+                  child: Text(r.alvo,
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: pianoBlack))),
+              Expanded(
+                  child: Text(r.cantada,
+                      style: const TextStyle(color: pianoGray))),
+              if (r.cantou)
+                Expanded(
+                    child: Text(
+                      r.notaCerta
+                          ? _statusRegra(r.cents.toDouble())
+                          : 'Nota errada',
+                      style: TextStyle(
+                          color: r.notaCerta ? _corStatus(r.cents.toDouble()) : pianoWrong,
+                          fontWeight: FontWeight.bold),
+                    )),
+              Icon(Icons.circle, color: cor, size: 14),
+              const SizedBox(width: 4),
+              Text(icone,
+                  style:
+                      TextStyle(color: cor, fontWeight: FontWeight.bold)),
+            ]),
+          );
+        }),
+      ]),
     );
   }
 
@@ -1525,12 +1571,12 @@ Widget build(BuildContext context) {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Container(height: 6, color: Colors.grey.shade300),
+            Container(height: 6, color: pianoIce),
             Container(
               width: 60,
               height: 10,
               decoration: BoxDecoration(
-                  color: Colors.green, borderRadius: BorderRadius.circular(5)),
+                  color: pianoCorrect, borderRadius: BorderRadius.circular(5)),
             ),
             Align(
               alignment: Alignment(pos, 0),
@@ -1538,7 +1584,7 @@ Widget build(BuildContext context) {
                 width: 5,
                 height: 26,
                 decoration: BoxDecoration(
-                    color: Colors.black,
+                    color: pianoBlack,
                     borderRadius: BorderRadius.circular(3)),
               ),
             ),
@@ -1547,9 +1593,9 @@ Widget build(BuildContext context) {
       ),
       const SizedBox(height: 4),
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text('-$escala', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        const Text('0', style: TextStyle(fontSize: 11, color: Colors.grey)),
-        Text('+$escala', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        Text('-$escala', style: const TextStyle(fontSize: 11, color: pianoGray)),
+        const Text('0', style: TextStyle(fontSize: 11, color: pianoGray)),
+        Text('+$escala', style: const TextStyle(fontSize: 11, color: pianoGray)),
       ]),
     ]);
   }
