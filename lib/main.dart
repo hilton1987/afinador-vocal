@@ -15,7 +15,6 @@ const List<String> vogais = ['A', 'E', 'I', 'O', 'U'];
 
 const List<int> registrosVocais = [1, 2, 3, 4, 5, 6];
 
-// Formantes para síntese de vogal (F1, F2, F3 em Hz)
 const Map<String, List<double>> formantes = {
   'A': [730, 1090, 2440],
   'E': [530, 1840, 2480],
@@ -24,13 +23,20 @@ const Map<String, List<double>> formantes = {
   'U': [300, 870, 2240],
 };
 
-// ====== PALETA "TECLADO VIRTUAL" ======
-const Color pianoWhite = Color(0xFFFFFFFF);
-const Color pianoIce = Color(0xFFF5F5F5);
-const Color pianoBlack = Color(0xFF111111);
-const Color pianoGray = Color(0xFF555555);
-const Color pianoCorrect = Color(0xFF22C55E);
-const Color pianoWrong = Color(0xFFEF4444);
+// ====== PALETA "LUXO" ======
+const Color bgDark1 = Color(0xFF0A0A0F);
+const Color bgDark2 = Color(0xFF16161E);
+const Color gold = Color(0xFFD4AF37);
+const Color goldBright = Color(0xFFFFD700);
+const Color goldSoft = Color(0xFFB8941F);
+const Color textPrimary = Color(0xFFFFFFFF);
+const Color textSecondary = Color(0xFFA0A0B0);
+const Color textMuted = Color(0xFF6B6B7B);
+const Color cardBg = Color(0x14FFFFFF);
+const Color cardBorder = Color(0x1FFFFFFF);
+const Color danger = Color(0xFFFF4757);
+const Color warning = Color(0xFFFFA502);
+const Color success = Color(0xFF22C55E);
 
 enum Dificuldade {
   iniciante('Iniciantes', 25, 50, 'Iniciante'),
@@ -50,7 +56,6 @@ class SequenciaDef {
   const SequenciaDef(this.nome, this.semitons);
 }
 
-// ====== TODAS AS ESCALAS ORGANIZADAS POR CATEGORIA ======
 final Map<String, Map<String, SequenciaDef>> _categorias = {
   '🎵 Modos Gregos': {
     'Maior (Jônico)': const SequenciaDef('Maior', [0, 2, 4, 5, 7, 9, 11, 12]),
@@ -165,6 +170,58 @@ enum FaseSequencia { parado, contagem, tocando, finalizado, ouvindo }
 
 enum ModoVogal { fixa, todas }
 
+// ====== WIDGET AUXILIAR: CARD LUXUOSO ======
+class _LuxCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  const _LuxCard({required this.child, this.padding});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: padding ?? const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x1AFFFFFF), Color(0x0AFFFFFF)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: cardBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+// ====== WIDGET AUXILIAR: TÍTULO LUXUOSO ======
+class _LuxTitle extends StatelessWidget {
+  final String text;
+  final double fontSize;
+  final Color color;
+  const _LuxTitle(this.text, {this.fontSize = 14, this.color = textSecondary});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        fontSize: fontSize,
+        color: color,
+        letterSpacing: 2.0,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+}
+
 class AfinadorApp extends StatefulWidget {
   const AfinadorApp({super.key});
   @override
@@ -172,7 +229,6 @@ class AfinadorApp extends StatefulWidget {
 }
 
 class _AfinadorAppState extends State<AfinadorApp> {
-  // Nota alvo (modo livre)
   String _notaSimples = 'F';
   int _oitava = 4;
   String _notaAlvo = 'F4';
@@ -186,7 +242,6 @@ class _AfinadorAppState extends State<AfinadorApp> {
   String _notaCantada = '-';
   double _desvioAlvo = 0;
 
-  // Áudio
   web.AudioContext? _audioCtx;
   web.MediaStream? _stream;
   web.AnalyserNode? _analyser;
@@ -194,7 +249,6 @@ class _AfinadorAppState extends State<AfinadorApp> {
   Timer? _timerDeteccao;
   Timer? _timerSequencia;
 
-  // Sequência
   String _sequenciaSelecionada = 'Maior (Jônico)';
   String _notaRaiz = 'C';
   int _registroVocal = 3;
@@ -208,7 +262,6 @@ class _AfinadorAppState extends State<AfinadorApp> {
   final List<double> _janelaFreqs = [];
   final List<ResultadoSequencia> _resultados = [];
 
-  // Gravação
   web.MediaRecorder? _mediaRecorder;
   web.MediaStreamAudioDestinationNode? _destinoGravacao;
   final List<web.Blob> _audioChunks = [];
@@ -357,9 +410,8 @@ class _AfinadorAppState extends State<AfinadorApp> {
     final masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0, now);
     masterGain.gain.linearRampToValueAtTime(0.25, now + 0.05);
-    masterGain.gain.setValueAtTime(0.25, now + dur - 0.1);
+    masterGain.setValueAtTime(0.25, now + dur - 0.1);
     masterGain.gain.linearRampToValueAtTime(0, now + dur);
-
 
     osc.connect(f1);
     osc.connect(f2);
@@ -652,17 +704,17 @@ class _AfinadorAppState extends State<AfinadorApp> {
 
   Color _corDesvio(double desvio) {
     final abs = desvio.abs();
-    if (abs <= _dificuldade.verde) return pianoCorrect;
-    if (abs <= _dificuldade.laranja) return Colors.orange;
-    return pianoWrong;
+    if (abs <= _dificuldade.verde) return goldBright;
+    if (abs <= _dificuldade.laranja) return warning;
+    return danger;
   }
 
   String _textoDesvio(double desvio) {
     final d = _dificuldade;
     final abs = desvio.abs();
-    if (abs <= d.verde) return '✓ afinado!';
-    if (desvio > d.verde) return '↑ agudo demais (cante mais grave)';
-    if (desvio < -d.verde) return '↓ grave demais (cante mais agudo)';
+    if (abs <= d.verde) return '✨ afinado!';
+    if (desvio > d.verde) return '↑ agudo demais';
+    if (desvio < -d.verde) return '↓ grave demais';
     return '';
   }
 
@@ -677,58 +729,150 @@ class _AfinadorAppState extends State<AfinadorApp> {
   Color _corStatus(double cents) {
     final d = _dificuldade;
     final abs = cents.abs();
-    if (abs <= d.verde) return pianoCorrect;
-    if (abs <= d.laranja) return Colors.orange;
-    return pianoWrong;
+    if (abs <= d.verde) return goldBright;
+    if (abs <= d.laranja) return warning;
+    return danger;
+  }
+
+  // ====== BOTÃO LUXUOSO ======
+  Widget _luxButton({
+    required String label,
+    required VoidCallback? onPressed,
+    Color? background,
+    Color? foreground,
+    IconData? icon,
+    bool isGold = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+          decoration: BoxDecoration(
+            gradient: isGold
+                ? const LinearGradient(
+                    colors: [gold, goldSoft],
+                  )
+                : null,
+            color: isGold ? null : (background ?? const Color(0x1AFFFFFF)),
+            borderRadius: BorderRadius.circular(16),
+            border: isGold
+                ? null
+                : Border.all(
+                    color: onPressed == null
+                        ? textMuted.withOpacity(0.3)
+                        : gold.withOpacity(0.4),
+                    width: 1),
+            boxShadow: isGold
+                ? [
+                    BoxShadow(
+                      color: gold.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, color: foreground ?? textPrimary, size: 20),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: foreground ?? textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildRegra() {
     final d = _dificuldade;
     final escala = d.laranja + 20;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: pianoWhite,
-        border: Border.all(color: pianoBlack, width: 1),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return _LuxCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Text('📏 Como está o desvio?',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: pianoBlack)),
+            const _LuxTitle('📏  Regra de afinação', fontSize: 12),
             const Spacer(),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: pianoIce,
-                borderRadius: BorderRadius.circular(10)),
+                gradient: LinearGradient(
+                  colors: [gold.withOpacity(0.2), goldSoft.withOpacity(0.1)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: gold.withOpacity(0.3)),
+              ),
               child: Text(d.subtitulo,
-                  style: const TextStyle(fontSize: 11, color: pianoGray)),
+                  style: const TextStyle(
+                      fontSize: 11, color: gold, letterSpacing: 1.5, fontWeight: FontWeight.w600)),
             ),
           ]),
-          const SizedBox(height: 12),
-          ToggleButtons(
-            isSelected: Dificuldade.values.map((e) => e == d).toList(),
-            onPressed: (i) =>
-                setState(() => _dificuldade = Dificuldade.values[i]),
-            constraints: const BoxConstraints(minHeight: 36),
-            selectedColor: pianoWhite,
-            fillColor: pianoBlack,
-            color: pianoBlack,
-            borderColor: pianoBlack,
-            children: Dificuldade.values
-                .map((e) => Text(e.nome, style: const TextStyle(fontSize: 13)))
-                .toList(),
-          ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Row(children: [
-            _ruleItem(pianoWrong, '> ${d.laranja} cents', 'Desafinado'),
-            _ruleItem(Colors.orange, '${d.verde}–${d.laranja}', 'Quase lá'),
-            _ruleItem(pianoCorrect, 'até ±${d.verde}', 'Afinado ✓'),
+            for (var i = 0; i < Dificuldade.values.length; i++)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => setState(() => _dificuldade = Dificuldade.values[i]),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: d == Dificuldade.values[i]
+                              ? const LinearGradient(colors: [gold, goldSoft])
+                              : null,
+                          color: d == Dificuldade.values[i]
+                              ? null
+                              : const Color(0x0DFFFFFF),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: d == Dificuldade.values[i]
+                                ? gold
+                                : cardBorder,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          Dificuldade.values[i].nome,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: d == Dificuldade.values[i] ? bgDark1 : textSecondary,
+                            fontWeight: d == Dificuldade.values[i] ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ]),
-          const SizedBox(height: 10),
+          const SizedBox(height: 18),
+          Row(children: [
+            _ruleItem(danger, '> ${d.laranja} cents', 'Desafinado'),
+            _ruleItem(warning, '${d.verde}–${d.laranja}', 'Quase lá'),
+            _ruleItem(goldBright, 'até ±${d.verde}', 'Afinado ✨'),
+          ]),
+          const SizedBox(height: 12),
           SizedBox(
             height: 18,
             child: LayoutBuilder(builder: (ctx, space) {
@@ -738,28 +882,25 @@ class _AfinadorAppState extends State<AfinadorApp> {
               final wVermelho = (w / 2) - wVerde - wLaranja;
               return Stack(children: [
                 Row(children: [
-                  Expanded(child: Container(color: pianoWrong.withOpacity(0.5))),
-                  Container(width: wVermelho, color: pianoWrong.withOpacity(0.5)),
-                  Container(width: wLaranja, color: Colors.orange.withOpacity(0.5)),
-                  Container(width: wVerde, color: pianoCorrect.withOpacity(0.5)),
-                  Container(width: wVerde, color: pianoCorrect.withOpacity(0.5)),
-                  Container(width: wLaranja, color: Colors.orange.withOpacity(0.5)),
-                  Container(width: wVermelho, color: pianoWrong.withOpacity(0.5)),
-                  Expanded(child: Container(color: pianoWrong.withOpacity(0.5))),
+                  Expanded(child: Container(color: danger.withOpacity(0.3))),
+                  Container(width: wVermelho, color: danger.withOpacity(0.3)),
+                  Container(width: wLaranja, color: warning.withOpacity(0.3)),
+                  Container(width: wVerde, color: goldBright.withOpacity(0.3)),
+                  Container(width: wVerde, color: goldBright.withOpacity(0.3)),
+                  Container(width: wLaranja, color: warning.withOpacity(0.3)),
+                  Container(width: wVermelho, color: danger.withOpacity(0.3)),
+                  Expanded(child: Container(color: danger.withOpacity(0.3))),
                 ]),
-                Center(child: Container(width: 2, color: pianoBlack)),
+                Center(child: Container(width: 2, color: gold)),
               ]);
             }),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('-$escala', style: const TextStyle(fontSize: 10, color: pianoGray)),
-            const Text('0', style: TextStyle(fontSize: 10, color: pianoGray)),
-            Text('+$escala', style: const TextStyle(fontSize: 10, color: pianoGray)),
+            Text('-$escala', style: const TextStyle(fontSize: 10, color: textMuted)),
+            const Text('0', style: TextStyle(fontSize: 10, color: textMuted)),
+            Text('+$escala', style: const TextStyle(fontSize: 10, color: textMuted)),
           ]),
-          const SizedBox(height: 8),
-          const Text('↑ cante + grave  ·  ↓ cante + agudo',
-              style: TextStyle(fontSize: 12, color: pianoGray)),
         ],
       ),
     );
@@ -770,14 +911,18 @@ class _AfinadorAppState extends State<AfinadorApp> {
       child: Column(children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          color: cor,
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          decoration: BoxDecoration(
+            color: cor.withOpacity(0.25),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+            border: Border.all(color: cor.withOpacity(0.5)),
+          ),
           child: Text(faixa,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: pianoWhite, fontSize: 12)),
+              style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w600)),
         ),
-        const SizedBox(height: 2),
-        Text(rotulo, style: const TextStyle(fontSize: 11, color: pianoBlack)),
+        const SizedBox(height: 4),
+        Text(rotulo, style: const TextStyle(fontSize: 11, color: textSecondary)),
       ]),
     );
   }
@@ -785,24 +930,17 @@ class _AfinadorAppState extends State<AfinadorApp> {
   Widget _buildListaNotasSequencia() {
     final seq = _gerarSequencia();
     final emAndamento = _fase == FaseSequencia.ouvindo || _fase == FaseSequencia.tocando;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: pianoWhite,
-        border: Border.all(color: pianoBlack, width: 1),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return _LuxCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Text('📋 Notas da escala',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: pianoBlack)),
+            const _LuxTitle('📋  Notas da escala', fontSize: 12),
             const Spacer(),
             Text('${seq.length} notas',
-                style: const TextStyle(fontSize: 12, color: pianoGray)),
+                style: const TextStyle(fontSize: 12, color: textMuted)),
           ]),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -811,43 +949,55 @@ class _AfinadorAppState extends State<AfinadorApp> {
               final isAtual = emAndamento && i == _indiceNotaAtual;
               final isPassada = emAndamento && i < _indiceNotaAtual;
               final isFutura = emAndamento && i > _indiceNotaAtual;
-              Color cor;
-              if (isAtual) {
-                cor = pianoBlack;
-              } else if (isPassada) {
-                cor = pianoGray.withOpacity(0.3);
-              } else if (isFutura) {
-                cor = pianoIce;
-              } else {
-                cor = pianoWhite;
-              }
+
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: cor,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: pianoBlack, width: 1),
+                  gradient: isAtual
+                      ? const LinearGradient(colors: [gold, goldSoft])
+                      : null,
+                  color: isAtual
+                      ? null
+                      : (isPassada
+                          ? textMuted.withOpacity(0.15)
+                          : (isFutura ? const Color(0x0DFFFFFF) : const Color(0x14FFFFFF))),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isAtual
+                        ? gold
+                        : (isPassada ? textMuted.withOpacity(0.3) : cardBorder),
+                  ),
+                  boxShadow: isAtual
+                      ? [
+                          BoxShadow(
+                            color: gold.withOpacity(0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text('${i + 1}.',
                         style: TextStyle(
-                            fontSize: 11,
-                            color: isAtual ? pianoWhite : pianoGray)),
-                    const SizedBox(width: 4),
+                            fontSize: 10,
+                            color: isAtual ? bgDark1 : textMuted,
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 6),
                     Text(n.nome,
                         style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: isAtual ? pianoWhite : pianoBlack)),
+                            color: isAtual ? bgDark1 : textPrimary)),
                     if (_modoVogal == ModoVogal.todas) ...[
                       const SizedBox(width: 4),
                       Text(_vogalDaNota(i),
                           style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: isAtual ? pianoWhite : pianoBlack)),
+                              color: isAtual ? bgDark1 : gold)),
                     ],
                   ],
                 ),
@@ -863,18 +1013,26 @@ class _AfinadorAppState extends State<AfinadorApp> {
     return DropdownButtonFormField<String>(
       value: _sequenciaSelecionada,
       isExpanded: true,
-      decoration: const InputDecoration(
-          labelText: 'Exercício / Escala',
-          border: OutlineInputBorder(
-            borderSide: BorderSide(color: pianoBlack, width: 1),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: pianoBlack, width: 1),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: pianoBlack, width: 2),
-          )),
-      dropdownColor: pianoWhite,
+      dropdownColor: bgDark2,
+      style: const TextStyle(color: textPrimary, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: 'Exercício / Escala',
+        labelStyle: const TextStyle(color: textSecondary, fontSize: 12, letterSpacing: 1),
+        filled: true,
+        fillColor: const Color(0x0DFFFFFF),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: gold.withOpacity(0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: gold, width: 1.5),
+        ),
+      ),
       items: [
         for (final entry in _categorias.entries) ...[
           DropdownMenuItem<String>(
@@ -882,13 +1040,13 @@ class _AfinadorAppState extends State<AfinadorApp> {
             child: Text(entry.key,
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: pianoBlack,
+                    color: gold,
                     fontSize: 13)),
           ),
           for (final nome in entry.value.keys)
             DropdownMenuItem<String>(
               value: nome,
-              child: Text(nome, style: const TextStyle(fontSize: 14, color: pianoBlack)),
+              child: Text(nome, style: const TextStyle(fontSize: 14, color: textPrimary)),
             ),
         ],
       ],
@@ -898,117 +1056,158 @@ class _AfinadorAppState extends State<AfinadorApp> {
     );
   }
 
- @override
-Widget build(BuildContext context) {
-  return MaterialApp(
-    theme: ThemeData(
-      useMaterial3: false, // ⬅️ DESLIGA Material 3 (causa das cores roxas)
-      brightness: Brightness.light,
-      primaryColor: pianoBlack,
-      scaffoldBackgroundColor: pianoWhite,
-      canvasColor: pianoWhite,
-      cardColor: pianoWhite,
-      dialogBackgroundColor: pianoWhite,
-      indicatorColor: pianoBlack,
-      
-      colorScheme: const ColorScheme.light(
-        primary: pianoBlack,
-        secondary: pianoBlack,
-        surface: pianoWhite,
-        background: pianoWhite,
-        onPrimary: pianoWhite,
-        onSecondary: pianoWhite,
-        onSurface: pianoBlack,
-        onBackground: pianoBlack,
-      ),
-      
-      appBarTheme: const AppBarTheme(
-        backgroundColor: pianoBlack,
-        foregroundColor: pianoWhite,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      
-     cardTheme: CardThemeData(
-  color: pianoWhite,
-  elevation: 0,
-  shape: RoundedRectangleBorder(
-    side: const BorderSide(color: pianoBlack, width: 1),
-    borderRadius: BorderRadius.circular(12),
-  ),
-),
-      
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: pianoBlack,
-          foregroundColor: pianoWhite,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
-      
-      toggleButtonsTheme: ToggleButtonsThemeData(
-        color: pianoBlack,
-        selectedColor: pianoWhite,
-        fillColor: pianoBlack,
-        borderColor: pianoBlack,
-        selectedBorderColor: pianoBlack,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      
-      inputDecorationTheme: InputDecorationTheme(
-        fillColor: pianoWhite,
+  Widget _buildDropdownSimples<T>({
+    required T value,
+    required List<T> items,
+    required String Function(T) itemText,
+    required ValueChanged<T?> onChanged,
+    String? label,
+    bool enabled = true,
+  }) {
+    return DropdownButtonFormField<T>(
+      value: value,
+      isExpanded: true,
+      dropdownColor: bgDark2,
+      style: const TextStyle(color: textPrimary, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: textSecondary, fontSize: 12, letterSpacing: 1),
         filled: true,
-        border: const OutlineInputBorder(
-          borderSide: BorderSide(color: pianoBlack, width: 1),
+        fillColor: const Color(0x0DFFFFFF),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: gold.withOpacity(0.3)),
         ),
-        enabledBorder: const OutlineInputBorder(
-          borderSide: BorderSide(color: pianoBlack, width: 1),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: cardBorder),
         ),
-        focusedBorder: const OutlineInputBorder(
-          borderSide: BorderSide(color: pianoBlack, width: 2),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: gold, width: 1.5),
         ),
       ),
-      
-      sliderTheme: SliderThemeData(
-        activeTrackColor: pianoBlack,
-        inactiveTrackColor: pianoIce,
-        thumbColor: pianoBlack,
-        overlayColor: pianoBlack.withOpacity(0.1),
-      ),
-      
-      progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: pianoBlack,
-        linearTrackColor: pianoIce,
-      ),
-    ),
-    home: DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: pianoWhite,
-        appBar: AppBar(
-          backgroundColor: pianoBlack,
-          title: const Text('Afinador Vocal', style: TextStyle(color: pianoWhite)),
-          bottom: TabBar(
-            indicatorColor: pianoWhite,
-            labelColor: pianoWhite,
-            unselectedLabelColor: pianoGray,
-            tabs: const [
-              Tab(text: 'Afinador'),
-              Tab(text: 'Escala'),
-            ],
+      items: items
+          .map((i) => DropdownMenuItem<T>(
+                value: i,
+                child: Text(itemText(i), style: const TextStyle(color: textPrimary)),
+              ))
+          .toList(),
+      onChanged: enabled ? onChanged : null,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: false,
+        brightness: Brightness.dark,
+        primaryColor: gold,
+        scaffoldBackgroundColor: bgDark1,
+        canvasColor: bgDark1,
+        cardColor: bgDark2,
+        dialogBackgroundColor: bgDark2,
+        indicatorColor: gold,
+        colorScheme: const ColorScheme.dark(
+          primary: gold,
+          secondary: goldSoft,
+          surface: bgDark2,
+          background: bgDark1,
+          onPrimary: bgDark1,
+          onSecondary: textPrimary,
+          onSurface: textPrimary,
+          onBackground: textPrimary,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          foregroundColor: textPrimary,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          fillColor: const Color(0x0DFFFFFF),
+          filled: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: cardBorder),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: cardBorder),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: gold, width: 1.5),
           ),
         ),
-        body: TabBarView(children: [
-          _buildAbaAfinador(),
-          _buildAbaSequencia(),
-        ]),
       ),
-    ),
-  );
-}
+      home: DefaultTabController(
+        length: 2,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [bgDark1, bgDark2, bgDark1],
+              stops: [0.0, 0.5, 1.0],
+            ),
+          ),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.graphic_eq, color: gold, size: 28),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Afinador Vocal',
+                    style: TextStyle(
+                      color: textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w300,
+                      letterSpacing: 3.0,
+                    ),
+                  ),
+                ],
+              ),
+              bottom: TabBar(
+                indicator: const UnderlineTabIndicator(
+                  borderSide: BorderSide(color: gold, width: 2),
+                  insets: EdgeInsets.symmetric(horizontal: 40),
+                ),
+                labelColor: gold,
+                unselectedLabelColor: textMuted,
+                labelStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 2.0,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 2.0,
+                ),
+                tabs: const [
+                  Tab(text: 'AFINADOR'),
+                  Tab(text: 'ESCALA'),
+                ],
+              ),
+            ),
+            body: const TabBarView(children: [
+              _AbaAfinadorWrapper(),
+              _AbaSequenciaWrapper(),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildAbaAfinador() {
     final desvio = _desvioAlvo;
@@ -1021,25 +1220,17 @@ Widget build(BuildContext context) {
         children: [
           _buildRegra(),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: pianoWhite,
-              border: Border.all(color: pianoBlack, width: 1),
-              borderRadius: BorderRadius.circular(12),
-            ),
+          _LuxCard(
             child: Column(children: [
-              const Text('Nota de referência',
-                  style: TextStyle(fontSize: 14, color: pianoGray)),
-              const SizedBox(height: 12),
+              const _LuxTitle('Nota de referência'),
+              const SizedBox(height: 16),
               Row(children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: _buildDropdownSimples<String>(
                     value: _notaSimples,
-                    decoration: const InputDecoration(labelText: 'Nota'),
-                    items: noteNames
-                        .map((n) => DropdownMenuItem(value: n, child: Text(n, style: const TextStyle(color: pianoBlack))))
-                        .toList(),
+                    items: noteNames,
+                    itemText: (n) => n,
+                    label: 'Nota',
                     onChanged: (v) {
                       _notaSimples = v!;
                       _atualizarAlvo();
@@ -1048,13 +1239,11 @@ Widget build(BuildContext context) {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: DropdownButtonFormField<int>(
+                  child: _buildDropdownSimples<int>(
                     value: _oitava,
-                    decoration: const InputDecoration(labelText: 'Oitava'),
-                    items: [
-                      for (var o = 0; o <= 8; o++)
-                        DropdownMenuItem(value: o, child: Text('$o', style: const TextStyle(color: pianoBlack)))
-                    ],
+                    items: List.generate(9, (i) => i),
+                    itemText: (o) => '$o',
+                    label: 'Oitava',
                     onChanged: (v) {
                       _oitava = v!;
                       _atualizarAlvo();
@@ -1062,90 +1251,107 @@ Widget build(BuildContext context) {
                   ),
                 ),
               ]),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               Text(_notaAlvo,
                   style: const TextStyle(
-                      fontSize: 72, fontWeight: FontWeight.bold, color: pianoBlack)),
+                      fontSize: 72,
+                      fontWeight: FontWeight.w200,
+                      color: textPrimary,
+                      letterSpacing: 4,
+                      height: 1.0)),
               Text('${_freqAlvo.toStringAsFixed(2)} Hz',
-                  style: const TextStyle(fontSize: 18, color: pianoGray)),
-              const SizedBox(height: 16),
-              const Text('🗣 Vogal para cantar',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: pianoBlack)),
-              const SizedBox(height: 8),
+                  style: const TextStyle(fontSize: 16, color: textMuted, letterSpacing: 1)),
+              const SizedBox(height: 24),
+              const Divider(color: cardBorder, height: 1),
+              const SizedBox(height: 20),
+              const _LuxTitle('🗣  Vogal para cantar'),
+              const SizedBox(height: 12),
               Row(children: [
                 for (final v in vogais)
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: ElevatedButton(
-                        onPressed: () => setState(() => _vogalAfinador = v),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          backgroundColor: _vogalAfinador == v ? pianoBlack : pianoWhite,
-                          foregroundColor: _vogalAfinador == v ? pianoWhite : pianoBlack,
-                          shape: const CircleBorder(),
-                          side: const BorderSide(color: pianoBlack, width: 1),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => setState(() => _vogalAfinador = v),
+                          customBorder: const CircleBorder(),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              gradient: _vogalAfinador == v
+                                  ? const LinearGradient(colors: [gold, goldSoft])
+                                  : null,
+                              color: _vogalAfinador == v ? null : const Color(0x0DFFFFFF),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: _vogalAfinador == v ? gold : cardBorder,
+                              ),
+                              boxShadow: _vogalAfinador == v
+                                  ? [
+                                      BoxShadow(
+                                        color: gold.withOpacity(0.4),
+                                        blurRadius: 12,
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(v,
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: _vogalAfinador == v ? bgDark1 : textPrimary)),
+                          ),
                         ),
-                        child: Text(v,
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ),
               ]),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
+              const SizedBox(height: 20),
+              _luxButton(
+                label: 'Tocar vogal "${_vogalAfinador}"',
+                icon: Icons.volume_up,
                 onPressed: _tocarNota,
-                icon: const Icon(Icons.volume_up),
-                label: Text('Tocar vogal "${_vogalAfinador}"'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: pianoBlack,
-                  foregroundColor: pianoWhite,
-                ),
+                isGold: true,
+                foreground: bgDark1,
               ),
             ]),
           ),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
+          _luxButton(
+            label: _ouvindo ? 'Parar de ouvir' : 'Começar a cantar',
+            icon: _ouvindo ? Icons.stop : Icons.mic,
             onPressed: _ouvindo ? _parar : _iniciarOuvir,
-            icon: Icon(_ouvindo ? Icons.stop : Icons.mic),
-            label: Text(_ouvindo ? 'Parar de ouvir' : 'Começar a cantar'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: _ouvindo ? pianoWrong : pianoBlack,
-              foregroundColor: pianoWhite,
-            ),
+            background: _ouvindo ? danger : null,
+            isGold: !_ouvindo,
+            foreground: _ouvindo ? textPrimary : bgDark1,
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: pianoWhite,
-              border: Border.all(color: pianoBlack, width: 1),
-              borderRadius: BorderRadius.circular(12),
-            ),
+          _LuxCard(
             child: Column(children: [
-              const Text('Você cantou',
-                  style: TextStyle(fontSize: 14, color: pianoGray)),
-              const SizedBox(height: 8),
+              const _LuxTitle('Você cantou'),
+              const SizedBox(height: 12),
               Text(_notaCantada,
                   style: const TextStyle(
-                      fontSize: 64, fontWeight: FontWeight.bold, color: pianoBlack)),
+                      fontSize: 64,
+                      fontWeight: FontWeight.w200,
+                      color: textPrimary,
+                      letterSpacing: 3)),
               Text(
                   _freqCantada > 0
                       ? '${_freqCantada.toStringAsFixed(1)} Hz'
                       : '—',
-                  style: const TextStyle(fontSize: 18, color: pianoGray)),
-              const SizedBox(height: 8),
+                  style: const TextStyle(fontSize: 16, color: textMuted, letterSpacing: 1)),
+              const SizedBox(height: 12),
               Text(
                 _freqCantada > 0
                     ? '${desvio.toStringAsFixed(0)} cents · $seta'
                     : 'Cante para ver o resultado',
                 style: TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold, color: cor),
+                    fontSize: 18, fontWeight: FontWeight.w600, color: cor, letterSpacing: 0.5),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               _buildMedidor(desvio),
             ]),
           ),
@@ -1164,218 +1370,297 @@ Widget build(BuildContext context) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: pianoWhite,
-              border: Border.all(color: pianoBlack, width: 1),
-              borderRadius: BorderRadius.circular(12),
-            ),
+          _LuxCard(
             child: Column(children: [
-              const Text('Escala de notas',
-                  style: TextStyle(fontSize: 14, color: pianoGray)),
-              const SizedBox(height: 12),
-              _buildDropdownEscalas(emProgresso),
+              const _LuxTitle('Escala de notas'),
               const SizedBox(height: 16),
+              _buildDropdownEscalas(emProgresso),
+              const SizedBox(height: 20),
 
-              const Text('🎼 Tom base (tônica)',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: pianoBlack)),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _notaRaiz,
-                    decoration: const InputDecoration(labelText: 'Nota raiz'),
-                    items: noteNames
-                        .map((n) => DropdownMenuItem(value: n, child: Text(n, style: const TextStyle(color: pianoBlack))))
-                        .toList(),
-                    onChanged: emProgresso
-                        ? null
-                        : (v) => setState(() => _notaRaiz = v!),
-                  ),
-                ),
-              ]),
+              const _LuxTitle('🎼  Tom base (tônica)'),
               const SizedBox(height: 12),
+              _buildDropdownSimples<String>(
+                value: _notaRaiz,
+                items: noteNames,
+                itemText: (n) => n,
+                label: 'Nota raiz',
+                enabled: !emProgresso,
+                onChanged: (v) => setState(() => _notaRaiz = v!),
+              ),
+              const SizedBox(height: 20),
 
-              const Text('🎤 Registro vocal',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: pianoBlack)),
-              const SizedBox(height: 8),
+              const _LuxTitle('🎤  Registro vocal'),
+              const SizedBox(height: 12),
               Row(children: [
                 for (final reg in registrosVocais)
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 3),
-                      child: ElevatedButton(
-                        onPressed: emProgresso
-                            ? null
-                            : () => setState(() => _registroVocal = reg),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          backgroundColor: _registroVocal == reg ? pianoBlack : pianoWhite,
-                          foregroundColor: _registroVocal == reg ? pianoWhite : pianoBlack,
-                          side: const BorderSide(color: pianoBlack, width: 1),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: emProgresso
+                              ? null
+                              : () => setState(() => _registroVocal = reg),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              gradient: _registroVocal == reg
+                                  ? const LinearGradient(colors: [gold, goldSoft])
+                                  : null,
+                              color: _registroVocal == reg ? null : const Color(0x0DFFFFFF),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _registroVocal == reg ? gold : cardBorder,
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text('Reg. $reg',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: _registroVocal == reg ? bgDark1 : textSecondary)),
+                          ),
                         ),
-                        child: Text('Reg. $reg',
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ),
               ]),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text('A escala começa em $_notaRaiz no registro $_registroVocal',
-                  style: const TextStyle(fontSize: 11, color: pianoGray)),
-              const SizedBox(height: 16),
+                  style: const TextStyle(fontSize: 11, color: textMuted)),
+              const SizedBox(height: 20),
 
-              const Text('🗣 Vogal para cantar',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: pianoBlack)),
-              const SizedBox(height: 8),
-              ToggleButtons(
-                isSelected: [
-                  _modoVogal == ModoVogal.fixa,
-                  _modoVogal == ModoVogal.todas,
-                ],
-                onPressed: emProgresso
-                    ? null
-                    : (i) => setState(() =>
-                          _modoVogal = i == 0 ? ModoVogal.fixa : ModoVogal.todas),
-                constraints: const BoxConstraints(minHeight: 32),
-                selectedColor: pianoWhite,
-                fillColor: pianoBlack,
-                color: pianoBlack,
-                borderColor: pianoBlack,
-                children: const [
-                  Text('Fixa', style: TextStyle(fontSize: 13)),
-                  Text('Todas (A,E,I,O,U)', style: TextStyle(fontSize: 13)),
-                ],
-              ),
-              const SizedBox(height: 8),
+              const _LuxTitle('🗣  Vogal para cantar'),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: emProgresso ? null : () => setState(() => _modoVogal = ModoVogal.fixa),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            gradient: _modoVogal == ModoVogal.fixa
+                                ? const LinearGradient(colors: [gold, goldSoft])
+                                : null,
+                            color: _modoVogal == ModoVogal.fixa ? null : const Color(0x0DFFFFFF),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _modoVogal == ModoVogal.fixa ? gold : cardBorder,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text('Fixa',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _modoVogal == ModoVogal.fixa ? bgDark1 : textSecondary)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: emProgresso ? null : () => setState(() => _modoVogal = ModoVogal.todas),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            gradient: _modoVogal == ModoVogal.todas
+                                ? const LinearGradient(colors: [gold, goldSoft])
+                                : null,
+                            color: _modoVogal == ModoVogal.todas ? null : const Color(0x0DFFFFFF),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _modoVogal == ModoVogal.todas ? gold : cardBorder,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text('Todas (A,E,I,O,U)',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _modoVogal == ModoVogal.todas ? bgDark1 : textSecondary)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
               if (_modoVogal == ModoVogal.fixa)
                 Row(children: [
                   for (final v in vogais)
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ElevatedButton(
-                          onPressed: emProgresso
-                              ? null
-                              : () => setState(() => _vogalSelecionada = v),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            backgroundColor: _vogalSelecionada == v ? pianoBlack : pianoWhite,
-                            foregroundColor: _vogalSelecionada == v ? pianoWhite : pianoBlack,
-                            shape: const CircleBorder(),
-                            side: const BorderSide(color: pianoBlack, width: 1),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: emProgresso
+                                ? null
+                                : () => setState(() => _vogalSelecionada = v),
+                            customBorder: const CircleBorder(),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                gradient: _vogalSelecionada == v
+                                    ? const LinearGradient(colors: [gold, goldSoft])
+                                    : null,
+                                color: _vogalSelecionada == v ? null : const Color(0x0DFFFFFF),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: _vogalSelecionada == v ? gold : cardBorder,
+                                ),
+                                boxShadow: _vogalSelecionada == v
+                                    ? [
+                                        BoxShadow(
+                                          color: gold.withOpacity(0.4),
+                                          blurRadius: 12,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(v,
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: _vogalSelecionada == v ? bgDark1 : textPrimary)),
+                            ),
                           ),
-                          child: Text(v,
-                              style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ),
                 ])
               else
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: pianoIce,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: pianoBlack, width: 1),
+                    color: gold.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: gold.withOpacity(0.3)),
                   ),
-                  child: const Row(children: [
-                    Icon(Icons.info, color: pianoBlack, size: 18),
-                    SizedBox(width: 8),
-                    Expanded(
+                  child: Row(children: [
+                    const Icon(Icons.info_outline, color: gold, size: 18),
+                    const SizedBox(width: 10),
+                    const Expanded(
                       child: Text(
                           'Cada nota será cantada com uma vogal diferente (A, E, I, O, U)',
-                          style: TextStyle(fontSize: 12, color: pianoBlack)),
+                          style: TextStyle(fontSize: 12, color: textSecondary)),
                     ),
                   ]),
                 ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              const Text('⚡ Velocidade do exercício',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: pianoBlack)),
-              const SizedBox(height: 8),
+              const _LuxTitle('⚡  Velocidade do exercício'),
+              const SizedBox(height: 12),
 
               Row(children: [
                 for (final entry in _presetsBpm.entries)
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: ElevatedButton(
-                        onPressed: emProgresso
-                            ? null
-                            : () => setState(() => _bpm = entry.value),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          backgroundColor: _bpm == entry.value ? pianoBlack : pianoWhite,
-                          foregroundColor: _bpm == entry.value ? pianoWhite : pianoBlack,
-                          side: const BorderSide(color: pianoBlack, width: 1),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: emProgresso
+                              ? null
+                              : () => setState(() => _bpm = entry.value),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              gradient: _bpm == entry.value
+                                  ? const LinearGradient(colors: [gold, goldSoft])
+                                  : null,
+                              color: _bpm == entry.value ? null : const Color(0x0DFFFFFF),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _bpm == entry.value ? gold : cardBorder,
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(entry.key,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: _bpm == entry.value ? bgDark1 : textSecondary)),
+                          ),
                         ),
-                        child: Text(entry.key,
-                            style: const TextStyle(fontSize: 12)),
                       ),
                     ),
                   ),
               ]),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               Row(children: [
-                const Icon(Icons.speed, size: 20, color: pianoBlack),
+                const Icon(Icons.speed, size: 20, color: gold),
                 const SizedBox(width: 8),
-                const Text('BPM', style: TextStyle(color: pianoBlack)),
+                const Text('BPM', style: TextStyle(color: textSecondary, letterSpacing: 1.5, fontSize: 12)),
                 Expanded(
-                  child: Slider(
-                    value: _bpm,
-                    min: 40,
-                    max: 140,
-                    divisions: 20,
-                    label: '${_bpm.round()}',
-                    activeColor: pianoBlack,
-                    inactiveColor: pianoIce,
-                    onChanged: emProgresso
-                        ? null
-                        : (v) => setState(() => _bpm = v),
+                  child: SliderTheme(
+                    data: SliderThemeData(
+                      activeTrackColor: gold,
+                      inactiveTrackColor: textMuted.withOpacity(0.3),
+                      thumbColor: gold,
+                      overlayColor: gold.withOpacity(0.1),
+                    ),
+                    child: Slider(
+                      value: _bpm,
+                      min: 40,
+                      max: 140,
+                      divisions: 20,
+                      label: '${_bpm.round()}',
+                      onChanged: emProgresso
+                          ? null
+                          : (v) => setState(() => _bpm = v),
+                    ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: pianoIce,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: pianoBlack, width: 1),
+                    gradient: const LinearGradient(colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)]),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: gold.withOpacity(0.4)),
                   ),
                   child: Text('${_bpm.round()}',
                       style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: pianoBlack,
+                          color: gold,
                           fontSize: 16)),
                 ),
               ]),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              ElevatedButton.icon(
+              _luxButton(
+                label: '🎧  Ouvir escala',
+                icon: Icons.headphones,
                 onPressed: emProgresso ? null : _ouvirSequencia,
-                icon: const Icon(Icons.headphones),
-                label: const Text('🎧 Ouvir escala'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: pianoBlack,
-                  foregroundColor: pianoWhite,
-                ),
+                foreground: textPrimary,
               ),
               const SizedBox(height: 12),
 
-              ElevatedButton.icon(
+              _luxButton(
+                label: emProgresso ? 'Parar' : '🎤  Validar escala',
+                icon: emProgresso ? Icons.stop : Icons.mic,
                 onPressed: emProgresso ? _parar : _iniciarSequencia,
-                icon: Icon(emProgresso ? Icons.stop : Icons.mic),
-                label: Text(emProgresso ? 'Parar' : '🎤 Validar escala'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: emProgresso ? pianoWrong : pianoBlack,
-                  foregroundColor: pianoWhite,
-                ),
+                background: emProgresso ? danger : null,
+                isGold: !emProgresso,
+                foreground: emProgresso ? textPrimary : bgDark1,
               ),
             ]),
           ),
@@ -1385,93 +1670,131 @@ Widget build(BuildContext context) {
           const SizedBox(height: 16),
 
           if (_fase != FaseSequencia.parado) ...[
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: pianoWhite,
-                border: Border.all(color: pianoBlack, width: 1),
-                borderRadius: BorderRadius.circular(12),
-              ),
+            _LuxCard(
               child: Column(children: [
                 if (_fase == FaseSequencia.contagem)
                   Column(children: [
                     Text('$_batidaContagem',
                         style: const TextStyle(
-                            fontSize: 60, fontWeight: FontWeight.bold, color: pianoBlack)),
+                            fontSize: 72,
+                            fontWeight: FontWeight.w200,
+                            color: gold,
+                            letterSpacing: 4)),
                     const Text('Prepare-se...',
-                        style: TextStyle(fontSize: 16, color: pianoGray)),
+                        style: TextStyle(fontSize: 14, color: textMuted, letterSpacing: 1.5)),
                   ])
                 else if (_fase == FaseSequencia.tocando)
                   Column(children: [
-                    const Text('Cante agora',
-                        style: TextStyle(fontSize: 14, color: pianoGray)),
+                    const _LuxTitle('Cante agora'),
+                    const SizedBox(height: 12),
                     Text(_notaAlvo,
                         style: const TextStyle(
-                            fontSize: 72, fontWeight: FontWeight.bold, color: pianoBlack)),
+                            fontSize: 72,
+                            fontWeight: FontWeight.w200,
+                            color: textPrimary,
+                            letterSpacing: 4)),
                     Text(
                         'Nota ${_indiceNotaAtual + 1} de ${_sequenciaAtual.length}',
                         style: const TextStyle(
-                            fontSize: 16, color: pianoGray)),
-                    const SizedBox(height: 8),
-
+                            fontSize: 14, color: textMuted, letterSpacing: 1)),
+                    const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                       decoration: BoxDecoration(
-                        color: pianoBlack,
+                        gradient: const LinearGradient(colors: [gold, goldSoft]),
                         borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: gold.withOpacity(0.3),
+                            blurRadius: 12,
+                          ),
+                        ],
                       ),
                       child: Text(
                           'Cante a vogal "${_vogalDaNota(_indiceNotaAtual)}"',
                           style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: pianoWhite)),
+                              color: bgDark1)),
                     ),
-                    const SizedBox(height: 12),
-                    LinearProgressIndicator(
-                        value: (_indiceNotaAtual + 1) / _sequenciaAtual.length,
-                        backgroundColor: pianoIce,
-                        valueColor: const AlwaysStoppedAnimation<Color>(pianoBlack)),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                          value: (_indiceNotaAtual + 1) / _sequenciaAtual.length,
+                          backgroundColor: textMuted.withOpacity(0.2),
+                          valueColor: const AlwaysStoppedAnimation<Color>(gold),
+                          minHeight: 6),
+                    ),
+                    const SizedBox(height: 16),
                     Text(_notaCantada,
                         style: const TextStyle(
-                            fontSize: 36, fontWeight: FontWeight.bold, color: pianoBlack)),
+                            fontSize: 36,
+                            fontWeight: FontWeight.w200,
+                            color: textPrimary,
+                            letterSpacing: 2)),
                     Text(
                       _freqCantada > 0
                           ? '${_desvioAlvo.toStringAsFixed(0)} cents'
                           : '—',
                       style: TextStyle(
-                          fontSize: 18, color: _corDesvio(_desvioAlvo)),
+                          fontSize: 16, color: _corDesvio(_desvioAlvo), letterSpacing: 1),
                     ),
                   ])
                 else if (_fase == FaseSequencia.ouvindo)
                   Column(children: [
-                    const Icon(Icons.headphones, color: pianoBlack, size: 48),
-                    const SizedBox(height: 8),
+                    const Icon(Icons.headphones, color: gold, size: 48),
+                    const SizedBox(height: 12),
                     const Text('Ouvindo escala...',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold, color: pianoBlack)),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: textPrimary,
+                            letterSpacing: 1.5)),
                     Text(
                         'Nota ${_indiceNotaAtual + 1} de ${_sequenciaAtual.length}',
                         style: const TextStyle(
-                            fontSize: 16, color: pianoGray)),
-                    const SizedBox(height: 12),
-                    LinearProgressIndicator(
-                        value: (_indiceNotaAtual + 1) / _sequenciaAtual.length,
-                        backgroundColor: pianoIce,
-                        valueColor: const AlwaysStoppedAnimation<Color>(pianoBlack)),
-                    const SizedBox(height: 12),
+                            fontSize: 14, color: textMuted, letterSpacing: 1)),
+                    const SizedBox(height: 16),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                          value: (_indiceNotaAtual + 1) / _sequenciaAtual.length,
+                          backgroundColor: textMuted.withOpacity(0.2),
+                          valueColor: const AlwaysStoppedAnimation<Color>(gold),
+                          minHeight: 6),
+                    ),
+                    const SizedBox(height: 16),
                     Text(_notaAlvo,
                         style: const TextStyle(
-                            fontSize: 56, fontWeight: FontWeight.bold, color: pianoBlack)),
+                            fontSize: 56,
+                            fontWeight: FontWeight.w200,
+                            color: textPrimary,
+                            letterSpacing: 3)),
                   ])
                 else
-                  const Column(children: [
-                    Icon(Icons.check_circle, color: pianoCorrect, size: 48),
-                    SizedBox(height: 8),
-                    Text('Escala concluída!',
+                  Column(children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [gold, goldSoft]),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: gold.withOpacity(0.4),
+                            blurRadius: 20,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.check, color: bgDark1, size: 40),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Escala concluída!',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold, color: pianoBlack)),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: gold,
+                            letterSpacing: 1.5)),
                   ]),
               ]),
             ),
@@ -1479,57 +1802,48 @@ Widget build(BuildContext context) {
           ],
 
           if (_gravando || _audioUrl != null)
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: pianoWhite,
-                border: Border.all(color: pianoBlack, width: 1),
-                borderRadius: BorderRadius.circular(12),
-              ),
+            _LuxCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('🎙 Gravação',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold, color: pianoBlack)),
-                  const SizedBox(height: 12),
+                  const _LuxTitle('🎙  Gravação'),
+                  const SizedBox(height: 16),
                   if (_gravando)
-                    Row(children: [
-                      Icon(Icons.fiber_manual_record,
-                          color: pianoWrong, size: 20),
-                      const SizedBox(width: 8),
-                      const Text('Gravando sua voz + notas...',
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: pianoWrong)),
-                    ])
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: danger.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: danger.withOpacity(0.3)),
+                      ),
+                      child: Row(children: [
+                        Icon(Icons.fiber_manual_record, color: danger, size: 18),
+                        const SizedBox(width: 10),
+                        const Text('Gravando sua voz + notas...',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: danger)),
+                      ]),
+                    )
                   else if (_audioUrl != null)
                     Column(children: [
                       const Text('Gravação finalizada! (voz + notas)',
-                          style: TextStyle(fontSize: 15, color: pianoBlack)),
-                      const SizedBox(height: 10),
-                      ElevatedButton.icon(
+                          style: TextStyle(fontSize: 14, color: textSecondary)),
+                      const SizedBox(height: 12),
+                      _luxButton(
+                        label: '🎧  Ouvir gravação',
+                        icon: Icons.play_circle,
                         onPressed: _ouvirGravacao,
-                        icon: const Icon(Icons.play_circle),
-                        label: const Text('🎧 Ouvir gravação'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: pianoBlack,
-                          foregroundColor: pianoWhite,
-                        ),
+                        foreground: textPrimary,
                       ),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
+                      const SizedBox(height: 10),
+                      _luxButton(
+                        label: '⬇️  Baixar áudio (.$_extensaoAudio)',
+                        icon: Icons.download,
                         onPressed: _baixarGravacao,
-                        icon: const Icon(Icons.download),
-                        label: Text('⬇️ Baixar áudio (.$_extensaoAudio)'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: pianoCorrect,
-                          foregroundColor: pianoWhite,
-                        ),
+                        isGold: true,
+                        foreground: bgDark1,
                       ),
                     ]),
                 ],
@@ -1547,46 +1861,76 @@ Widget build(BuildContext context) {
     final certas = _resultados.where((r) => r.notaCerta).length;
     final afinadas = _resultados.where((r) => r.afinado).length;
     final total = _resultados.length;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: pianoWhite,
-        border: Border.all(color: pianoBlack, width: 1),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return _LuxCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Resultado',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: pianoBlack)),
-        const SizedBox(height: 8),
-        Text('Notas certas: $certas/$total', style: const TextStyle(fontSize: 15, color: pianoBlack)),
-        Text('Afinadas: $afinadas/$total', style: const TextStyle(fontSize: 15, color: pianoBlack)),
+        const _LuxTitle('Resultado'),
         const SizedBox(height: 12),
+        Row(children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0x0DFFFFFF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: cardBorder),
+              ),
+              child: Column(children: [
+                Text('$certas/$total',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w300, color: textPrimary)),
+                const SizedBox(height: 4),
+                const Text('Notas certas', style: TextStyle(fontSize: 11, color: textMuted, letterSpacing: 1)),
+              ]),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [gold.withOpacity(0.15), goldSoft.withOpacity(0.05)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: gold.withOpacity(0.3)),
+              ),
+              child: Column(children: [
+                Text('$afinadas/$total',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w300, color: gold)),
+                const SizedBox(height: 4),
+                const Text('Afinadas ✨', style: TextStyle(fontSize: 11, color: gold, letterSpacing: 1)),
+              ]),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 16),
+        const Divider(color: cardBorder),
+        const SizedBox(height: 8),
         ..._resultados.asMap().entries.map((e) {
           final i = e.key;
           final r = e.value;
           final cor = !r.cantou
-              ? pianoGray
+              ? textMuted
               : (r.notaCerta && r.afinado
-                  ? pianoCorrect
-                  : (r.notaCerta ? Colors.orange : pianoWrong));
+                  ? goldBright
+                  : (r.notaCerta ? warning : danger));
           final icone = !r.cantou
               ? '·'
               : (r.notaCerta && r.afinado
                   ? '✓'
                   : (r.notaCerta ? '~' : '✗'));
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(children: [
               SizedBox(
-                  width: 40,
+                  width: 32,
                   child: Text('${i + 1}.',
-                      style: const TextStyle(color: pianoGray))),
+                      style: const TextStyle(color: textMuted, fontSize: 12))),
               Expanded(
                   child: Text(r.alvo,
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: pianoBlack))),
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: textPrimary))),
               Expanded(
                   child: Text(r.cantada,
-                      style: const TextStyle(color: pianoGray))),
+                      style: const TextStyle(color: textMuted))),
               if (r.cantou)
                 Expanded(
                     child: Text(
@@ -1594,10 +1938,11 @@ Widget build(BuildContext context) {
                           ? _statusRegra(r.cents.toDouble())
                           : 'Nota errada',
                       style: TextStyle(
-                          color: r.notaCerta ? _corStatus(r.cents.toDouble()) : pianoWrong,
-                          fontWeight: FontWeight.bold),
+                          color: r.notaCerta ? _corStatus(r.cents.toDouble()) : danger,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12),
                     )),
-              Icon(Icons.circle, color: cor, size: 14),
+              Icon(Icons.circle, color: cor, size: 12),
               const SizedBox(width: 4),
               Text(icone,
                   style:
@@ -1612,39 +1957,96 @@ Widget build(BuildContext context) {
   Widget _buildMedidor(double desvio) {
     final escala = _dificuldade.laranja + 20;
     final pos = (desvio / escala).clamp(-1.0, 1.0);
+    final afinado = desvio.abs() <= _dificuldade.verde;
     return Column(children: [
       SizedBox(
-        height: 30,
+        height: 36,
         width: double.infinity,
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Container(height: 6, color: pianoIce),
             Container(
-              width: 60,
-              height: 10,
+              height: 8,
               decoration: BoxDecoration(
-                  color: pianoCorrect, borderRadius: BorderRadius.circular(5)),
+                color: textMuted.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Container(
+              width: 70,
+              height: 12,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [goldBright.withOpacity(0.4), gold.withOpacity(0.6)],
+                ),
+                borderRadius: BorderRadius.circular(6),
+                boxShadow: [
+                  BoxShadow(
+                    color: goldBright.withOpacity(afinado ? 0.5 : 0.2),
+                    blurRadius: afinado ? 16 : 8,
+                  ),
+                ],
+              ),
             ),
             Align(
               alignment: Alignment(pos, 0),
               child: Container(
-                width: 5,
-                height: 26,
+                width: 6,
+                height: 32,
                 decoration: BoxDecoration(
-                    color: pianoBlack,
-                    borderRadius: BorderRadius.circular(3)),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [gold, goldSoft],
+                  ),
+                  borderRadius: BorderRadius.circular(3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gold.withOpacity(0.6),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
-      const SizedBox(height: 4),
+      const SizedBox(height: 6),
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text('-$escala', style: const TextStyle(fontSize: 11, color: pianoGray)),
-        const Text('0', style: TextStyle(fontSize: 11, color: pianoGray)),
-        Text('+$escala', style: const TextStyle(fontSize: 11, color: pianoGray)),
+        Text('-$escala', style: const TextStyle(fontSize: 10, color: textMuted)),
+        const Text('0', style: TextStyle(fontSize: 10, color: textMuted)),
+        Text('+$escala', style: const TextStyle(fontSize: 10, color: textMuted)),
       ]),
     ]);
+  }
+}
+
+// ====== WRAPPERS PARA AS ABAS (pra poder usar const no TabBarView) ======
+class _AbaAfinadorWrapper extends StatefulWidget {
+  const _AbaAfinadorWrapper();
+  @override
+  State<_AbaAfinadorWrapper> createState() => _AbaAfinadorWrapperState();
+}
+
+class _AbaAfinadorWrapperState extends State<_AbaAfinadorWrapper> {
+  @override
+  Widget build(BuildContext context) {
+    final state = context.findAncestorStateOfType<_AfinadorAppState>()!;
+    return state._buildAbaAfinador();
+  }
+}
+
+class _AbaSequenciaWrapper extends StatefulWidget {
+  const _AbaSequenciaWrapper();
+  @override
+  State<_AbaSequenciaWrapper> createState() => _AbaSequenciaWrapperState();
+}
+
+class _AbaSequenciaWrapperState extends State<_AbaSequenciaWrapper> {
+  @override
+  Widget build(BuildContext context) {
+    final state = context.findAncestorStateOfType<_AfinadorAppState>()!;
+    return state._buildAbaSequencia();
   }
 }
