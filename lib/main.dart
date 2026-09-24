@@ -23,15 +23,17 @@ const Map<String, List<double>> formantes = {
   'U': [300, 870, 2240],
 };
 
-// ====== PALETA "LUXO" ======
-const Color bgDark1 = Color(0xFF0A0A0F);
-const Color bgDark2 = Color(0xFF16161E);
+// ====== PALETA MODERNA 3D ======
+const Color bgDeep = Color(0xFF08080F);   // topo
+const Color bgMid = Color(0xFF131320);    // meio
+const Color bgGlow = Color(0xFF1E1633);   // brilho violeta sutil
 const Color gold = Color(0xFFD4AF37);
 const Color goldBright = Color(0xFFFFD700);
-const Color goldSoft = Color(0xFFB8941F);
+const Color goldSoft = Color(0xFF9C7B1E);
+const Color goldShadow = Color(0x55B8860B);
 const Color textPrimary = Color(0xFFFFFFFF);
-const Color textSecondary = Color(0xFFA0A0B0);
-const Color textMuted = Color(0xFF6B6B7B);
+const Color textSecondary = Color(0xFFA5A5B5);
+const Color textMuted = Color(0xFF6E6E80);
 const Color cardBg = Color(0x14FFFFFF);
 const Color cardBorder = Color(0x1FFFFFFF);
 const Color danger = Color(0xFFFF4757);
@@ -170,7 +172,7 @@ enum FaseSequencia { parado, contagem, tocando, finalizado, ouvindo }
 
 enum ModoVogal { fixa, todas }
 
-// ====== WIDGET AUXILIAR: CARD LUXUOSO ======
+// ====== CARD 3D COM PROFUNDIDADE ======
 class _LuxCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -184,15 +186,20 @@ class _LuxCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0x1AFFFFFF), Color(0x0AFFFFFF)],
+          colors: [Color(0x20FFFFFF), Color(0x08FFFFFF)],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
         border: Border.all(color: cardBorder, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+          BoxShadow(
+            color: gold.withOpacity(0.06),
+            blurRadius: 40,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -201,7 +208,7 @@ class _LuxCard extends StatelessWidget {
   }
 }
 
-// ====== WIDGET AUXILIAR: TÍTULO LUXUOSO ======
+// ====== TÍTULO ======
 class _LuxTitle extends StatelessWidget {
   final String text;
   final double fontSize;
@@ -217,6 +224,119 @@ class _LuxTitle extends StatelessWidget {
         color: color,
         letterSpacing: 2.0,
         fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+}
+
+// ====== BOTÃO 3D COM BRILHO NO HOVER ======
+class _LuxButton extends StatefulWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final Color? background;
+  final Color? foreground;
+  final IconData? icon;
+  final bool isGold;
+  final bool isDanger;
+
+  const _LuxButton({
+    required this.label,
+    required this.onPressed,
+    this.background,
+    this.foreground,
+    this.icon,
+    this.isGold = false,
+    this.isDanger = false,
+  });
+
+  @override
+  State<_LuxButton> createState() => _LuxButtonState();
+}
+
+class _LuxButtonState extends State<_LuxButton> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onPressed != null;
+
+    final gradient = widget.isGold
+        ? const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [goldBright, gold, goldSoft],
+          )
+        : LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              (widget.isDanger ? danger : (widget.background ?? const Color(0x1AFFFFFF)))
+                  .withOpacity(enabled ? 1 : 0.4),
+              (widget.isDanger ? danger.withOpacity(0.85) : (widget.background ?? const Color(0x0DFFFFFF)))
+                  .withOpacity(enabled ? 1 : 0.3),
+            ],
+          );
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.forbidden,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(18),
+          border: widget.isGold
+              ? null
+              : Border.all(
+                  color: enabled
+                      ? (widget.isDanger ? danger : gold.withOpacity(0.5))
+                      : textMuted.withOpacity(0.3),
+                  width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: widget.isGold ? goldShadow : Colors.black.withOpacity(0.45),
+              blurRadius: _hover ? 24 : 12,
+              offset: const Offset(0, 6),
+            ),
+            if (_hover && enabled)
+              BoxShadow(
+                color: (widget.isGold ? goldBright : gold).withOpacity(0.35),
+                blurRadius: 30,
+                offset: const Offset(0, -2),
+              ),
+          ],
+        ),
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.icon != null) ...[
+                Icon(
+                  widget.icon,
+                  color: _hover && enabled && !widget.isGold
+                      ? goldBright
+                      : (widget.foreground ?? textPrimary),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                widget.label,
+                style: TextStyle(
+                  color: _hover && enabled && !widget.isGold
+                      ? goldBright
+                      : (widget.foreground ?? textPrimary),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -734,71 +854,6 @@ class _AfinadorAppState extends State<AfinadorApp> {
     return danger;
   }
 
-  // ====== BOTÃO LUXUOSO ======
-  Widget _luxButton({
-    required String label,
-    required VoidCallback? onPressed,
-    Color? background,
-    Color? foreground,
-    IconData? icon,
-    bool isGold = false,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-          decoration: BoxDecoration(
-            gradient: isGold
-                ? const LinearGradient(
-                    colors: [gold, goldSoft],
-                  )
-                : null,
-            color: isGold ? null : (background ?? const Color(0x1AFFFFFF)),
-            borderRadius: BorderRadius.circular(16),
-            border: isGold
-                ? null
-                : Border.all(
-                    color: onPressed == null
-                        ? textMuted.withOpacity(0.3)
-                        : gold.withOpacity(0.4),
-                    width: 1),
-            boxShadow: isGold
-                ? [
-                    BoxShadow(
-                      color: gold.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, color: foreground ?? textPrimary, size: 20),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  color: foreground ?? textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildRegra() {
     final d = _dificuldade;
     final escala = d.laranja + 20;
@@ -818,6 +873,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                 ),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: gold.withOpacity(0.3)),
+                boxShadow: [BoxShadow(color: gold.withOpacity(0.1), blurRadius: 8)],
               ),
               child: Text(d.subtitulo,
                   style: const TextStyle(
@@ -834,29 +890,31 @@ class _AfinadorAppState extends State<AfinadorApp> {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () => setState(() => _dificuldade = Dificuldade.values[i]),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
+                      borderRadius: BorderRadius.circular(14),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           gradient: d == Dificuldade.values[i]
-                              ? const LinearGradient(colors: [gold, goldSoft])
+                              ? const LinearGradient(colors: [goldBright, gold, goldSoft])
                               : null,
                           color: d == Dificuldade.values[i]
                               ? null
                               : const Color(0x0DFFFFFF),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: d == Dificuldade.values[i]
-                                ? gold
-                                : cardBorder,
+                            color: d == Dificuldade.values[i] ? goldBright : cardBorder,
                           ),
+                          boxShadow: d == Dificuldade.values[i]
+                              ? [BoxShadow(color: gold.withOpacity(0.4), blurRadius: 14, offset: const Offset(0, 4))]
+                              : null,
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           Dificuldade.values[i].nome,
                           style: TextStyle(
                             fontSize: 12,
-                            color: d == Dificuldade.values[i] ? bgDark1 : textSecondary,
+                            color: d == Dificuldade.values[i] ? bgDeep : textSecondary,
                             fontWeight: d == Dificuldade.values[i] ? FontWeight.w700 : FontWeight.w500,
                           ),
                         ),
@@ -950,11 +1008,12 @@ class _AfinadorAppState extends State<AfinadorApp> {
               final isPassada = emAndamento && i < _indiceNotaAtual;
               final isFutura = emAndamento && i > _indiceNotaAtual;
 
-              return Container(
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: isAtual
-                      ? const LinearGradient(colors: [gold, goldSoft])
+                      ? const LinearGradient(colors: [goldBright, gold, goldSoft])
                       : null,
                   color: isAtual
                       ? null
@@ -964,17 +1023,11 @@ class _AfinadorAppState extends State<AfinadorApp> {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isAtual
-                        ? gold
+                        ? goldBright
                         : (isPassada ? textMuted.withOpacity(0.3) : cardBorder),
                   ),
                   boxShadow: isAtual
-                      ? [
-                          BoxShadow(
-                            color: gold.withOpacity(0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
+                      ? [BoxShadow(color: gold.withOpacity(0.4), blurRadius: 16, offset: const Offset(0, 4))]
                       : null,
                 ),
                 child: Row(
@@ -983,21 +1036,21 @@ class _AfinadorAppState extends State<AfinadorApp> {
                     Text('${i + 1}.',
                         style: TextStyle(
                             fontSize: 10,
-                            color: isAtual ? bgDark1 : textMuted,
+                            color: isAtual ? bgDeep : textMuted,
                             fontWeight: FontWeight.w600)),
                     const SizedBox(width: 6),
                     Text(n.nome,
                         style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: isAtual ? bgDark1 : textPrimary)),
+                            color: isAtual ? bgDeep : textPrimary)),
                     if (_modoVogal == ModoVogal.todas) ...[
                       const SizedBox(width: 4),
                       Text(_vogalDaNota(i),
                           style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: isAtual ? bgDark1 : gold)),
+                              color: isAtual ? bgDeep : gold)),
                     ],
                   ],
                 ),
@@ -1013,7 +1066,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
     return DropdownButtonFormField<String>(
       value: _sequenciaSelecionada,
       isExpanded: true,
-      dropdownColor: bgDark2,
+      dropdownColor: bgMid,
       style: const TextStyle(color: textPrimary, fontSize: 14),
       decoration: InputDecoration(
         labelText: 'Exercício / Escala',
@@ -1067,7 +1120,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
     return DropdownButtonFormField<T>(
       value: value,
       isExpanded: true,
-      dropdownColor: bgDark2,
+      dropdownColor: bgMid,
       style: const TextStyle(color: textPrimary, fontSize: 14),
       decoration: InputDecoration(
         labelText: label,
@@ -1105,17 +1158,17 @@ class _AfinadorAppState extends State<AfinadorApp> {
         useMaterial3: false,
         brightness: Brightness.dark,
         primaryColor: gold,
-        scaffoldBackgroundColor: bgDark1,
-        canvasColor: bgDark1,
-        cardColor: bgDark2,
-        dialogBackgroundColor: bgDark2,
+        scaffoldBackgroundColor: bgDeep,
+        canvasColor: bgDeep,
+        cardColor: bgMid,
+        dialogBackgroundColor: bgMid,
         indicatorColor: gold,
         colorScheme: const ColorScheme.dark(
           primary: gold,
           secondary: goldSoft,
-          surface: bgDark2,
-          background: bgDark1,
-          onPrimary: bgDark1,
+          surface: bgMid,
+          background: bgDeep,
+          onPrimary: bgDeep,
           onSecondary: textPrimary,
           onSurface: textPrimary,
           onBackground: textPrimary,
@@ -1150,8 +1203,8 @@ class _AfinadorAppState extends State<AfinadorApp> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [bgDark1, bgDark2, bgDark1],
-              stops: [0.0, 0.5, 1.0],
+              colors: [bgDeep, bgMid, bgGlow, bgMid, bgDeep],
+              stops: [0.0, 0.3, 0.55, 0.8, 1.0],
             ),
           ),
           child: Scaffold(
@@ -1165,23 +1218,28 @@ class _AfinadorAppState extends State<AfinadorApp> {
                 children: [
                   const Icon(Icons.graphic_eq, color: gold, size: 28),
                   const SizedBox(width: 10),
-                  const Text(
-                    'Afinador Vocal',
-                    style: TextStyle(
-                      color: textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w300,
-                      letterSpacing: 3.0,
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [goldBright, gold, goldSoft],
+                    ).createShader(bounds),
+                    child: const Text(
+                      'Afinador Vocal',
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: 3.0,
+                      ),
                     ),
                   ),
                 ],
               ),
               bottom: TabBar(
                 indicator: const UnderlineTabIndicator(
-                  borderSide: BorderSide(color: gold, width: 2),
+                  borderSide: BorderSide(color: goldBright, width: 2),
                   insets: EdgeInsets.symmetric(horizontal: 40),
                 ),
-                labelColor: gold,
+                labelColor: goldBright,
                 unselectedLabelColor: textMuted,
                 labelStyle: const TextStyle(
                   fontSize: 13,
@@ -1252,13 +1310,18 @@ class _AfinadorAppState extends State<AfinadorApp> {
                 ),
               ]),
               const SizedBox(height: 24),
-              Text(_notaAlvo,
-                  style: const TextStyle(
-                      fontSize: 72,
-                      fontWeight: FontWeight.w200,
-                      color: textPrimary,
-                      letterSpacing: 4,
-                      height: 1.0)),
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [goldBright, gold, goldSoft],
+                ).createShader(bounds),
+                child: Text(_notaAlvo,
+                    style: const TextStyle(
+                        fontSize: 72,
+                        fontWeight: FontWeight.w200,
+                        color: textPrimary,
+                        letterSpacing: 4,
+                        height: 1.0)),
+              ),
               Text('${_freqAlvo.toStringAsFixed(2)} Hz',
                   style: const TextStyle(fontSize: 16, color: textMuted, letterSpacing: 1)),
               const SizedBox(height: 24),
@@ -1276,24 +1339,20 @@ class _AfinadorAppState extends State<AfinadorApp> {
                         child: InkWell(
                           onTap: () => setState(() => _vogalAfinador = v),
                           customBorder: const CircleBorder(),
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
                               gradient: _vogalAfinador == v
-                                  ? const LinearGradient(colors: [gold, goldSoft])
+                                  ? const LinearGradient(colors: [goldBright, gold, goldSoft])
                                   : null,
                               color: _vogalAfinador == v ? null : const Color(0x0DFFFFFF),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: _vogalAfinador == v ? gold : cardBorder,
+                                color: _vogalAfinador == v ? goldBright : cardBorder,
                               ),
                               boxShadow: _vogalAfinador == v
-                                  ? [
-                                      BoxShadow(
-                                        color: gold.withOpacity(0.4),
-                                        blurRadius: 12,
-                                      ),
-                                    ]
+                                  ? [BoxShadow(color: gold.withOpacity(0.5), blurRadius: 16, offset: const Offset(0, 4))]
                                   : null,
                             ),
                             alignment: Alignment.center,
@@ -1301,7 +1360,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                                 style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: _vogalAfinador == v ? bgDark1 : textPrimary)),
+                                    color: _vogalAfinador == v ? bgDeep : textPrimary)),
                           ),
                         ),
                       ),
@@ -1309,23 +1368,24 @@ class _AfinadorAppState extends State<AfinadorApp> {
                   ),
               ]),
               const SizedBox(height: 20),
-              _luxButton(
+              _LuxButton(
                 label: 'Tocar vogal "${_vogalAfinador}"',
                 icon: Icons.volume_up,
                 onPressed: _tocarNota,
                 isGold: true,
-                foreground: bgDark1,
+                foreground: bgDeep,
               ),
             ]),
           ),
           const SizedBox(height: 16),
-          _luxButton(
+          _LuxButton(
             label: _ouvindo ? 'Parar de ouvir' : 'Começar a cantar',
             icon: _ouvindo ? Icons.stop : Icons.mic,
             onPressed: _ouvindo ? _parar : _iniciarOuvir,
             background: _ouvindo ? danger : null,
             isGold: !_ouvindo,
-            foreground: _ouvindo ? textPrimary : bgDark1,
+            isDanger: _ouvindo,
+            foreground: _ouvindo ? textPrimary : bgDeep,
           ),
           const SizedBox(height: 16),
           _LuxCard(
@@ -1402,25 +1462,29 @@ class _AfinadorAppState extends State<AfinadorApp> {
                           onTap: emProgresso
                               ? null
                               : () => setState(() => _registroVocal = reg),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
+                          borderRadius: BorderRadius.circular(14),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
                               gradient: _registroVocal == reg
-                                  ? const LinearGradient(colors: [gold, goldSoft])
+                                  ? const LinearGradient(colors: [goldBright, gold, goldSoft])
                                   : null,
                               color: _registroVocal == reg ? null : const Color(0x0DFFFFFF),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: _registroVocal == reg ? gold : cardBorder,
+                                color: _registroVocal == reg ? goldBright : cardBorder,
                               ),
+                              boxShadow: _registroVocal == reg
+                                  ? [BoxShadow(color: gold.withOpacity(0.4), blurRadius: 14, offset: const Offset(0, 4))]
+                                  : null,
                             ),
                             alignment: Alignment.center,
                             child: Text('Reg. $reg',
                                 style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: _registroVocal == reg ? bgDark1 : textSecondary)),
+                                    color: _registroVocal == reg ? bgDeep : textSecondary)),
                           ),
                         ),
                       ),
@@ -1442,25 +1506,29 @@ class _AfinadorAppState extends State<AfinadorApp> {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: emProgresso ? null : () => setState(() => _modoVogal = ModoVogal.fixa),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
+                        borderRadius: BorderRadius.circular(14),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
                             gradient: _modoVogal == ModoVogal.fixa
-                                ? const LinearGradient(colors: [gold, goldSoft])
+                                ? const LinearGradient(colors: [goldBright, gold, goldSoft])
                                 : null,
                             color: _modoVogal == ModoVogal.fixa ? null : const Color(0x0DFFFFFF),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: _modoVogal == ModoVogal.fixa ? gold : cardBorder,
+                              color: _modoVogal == ModoVogal.fixa ? goldBright : cardBorder,
                             ),
+                            boxShadow: _modoVogal == ModoVogal.fixa
+                                ? [BoxShadow(color: gold.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))]
+                                : null,
                           ),
                           alignment: Alignment.center,
                           child: Text('Fixa',
                               style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: _modoVogal == ModoVogal.fixa ? bgDark1 : textSecondary)),
+                                  color: _modoVogal == ModoVogal.fixa ? bgDeep : textSecondary)),
                         ),
                       ),
                     ),
@@ -1474,25 +1542,29 @@ class _AfinadorAppState extends State<AfinadorApp> {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: emProgresso ? null : () => setState(() => _modoVogal = ModoVogal.todas),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
+                        borderRadius: BorderRadius.circular(14),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
                             gradient: _modoVogal == ModoVogal.todas
-                                ? const LinearGradient(colors: [gold, goldSoft])
+                                ? const LinearGradient(colors: [goldBright, gold, goldSoft])
                                 : null,
                             color: _modoVogal == ModoVogal.todas ? null : const Color(0x0DFFFFFF),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: _modoVogal == ModoVogal.todas ? gold : cardBorder,
+                              color: _modoVogal == ModoVogal.todas ? goldBright : cardBorder,
                             ),
+                            boxShadow: _modoVogal == ModoVogal.todas
+                                ? [BoxShadow(color: gold.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))]
+                                : null,
                           ),
                           alignment: Alignment.center,
                           child: Text('Todas (A,E,I,O,U)',
                               style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: _modoVogal == ModoVogal.todas ? bgDark1 : textSecondary)),
+                                  color: _modoVogal == ModoVogal.todas ? bgDeep : textSecondary)),
                         ),
                       ),
                     ),
@@ -1513,24 +1585,20 @@ class _AfinadorAppState extends State<AfinadorApp> {
                                 ? null
                                 : () => setState(() => _vogalSelecionada = v),
                             customBorder: const CircleBorder(),
-                            child: Container(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
                                 gradient: _vogalSelecionada == v
-                                    ? const LinearGradient(colors: [gold, goldSoft])
+                                    ? const LinearGradient(colors: [goldBright, gold, goldSoft])
                                     : null,
                                 color: _vogalSelecionada == v ? null : const Color(0x0DFFFFFF),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: _vogalSelecionada == v ? gold : cardBorder,
+                                  color: _vogalSelecionada == v ? goldBright : cardBorder,
                                 ),
                                 boxShadow: _vogalSelecionada == v
-                                    ? [
-                                        BoxShadow(
-                                          color: gold.withOpacity(0.4),
-                                          blurRadius: 12,
-                                        ),
-                                      ]
+                                    ? [BoxShadow(color: gold.withOpacity(0.5), blurRadius: 16, offset: const Offset(0, 4))]
                                     : null,
                               ),
                               alignment: Alignment.center,
@@ -1538,7 +1606,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                                   style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: _vogalSelecionada == v ? bgDark1 : textPrimary)),
+                                      color: _vogalSelecionada == v ? bgDeep : textPrimary)),
                             ),
                           ),
                         ),
@@ -1579,25 +1647,29 @@ class _AfinadorAppState extends State<AfinadorApp> {
                           onTap: emProgresso
                               ? null
                               : () => setState(() => _bpm = entry.value),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
+                          borderRadius: BorderRadius.circular(14),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
                               gradient: _bpm == entry.value
-                                  ? const LinearGradient(colors: [gold, goldSoft])
+                                  ? const LinearGradient(colors: [goldBright, gold, goldSoft])
                                   : null,
                               color: _bpm == entry.value ? null : const Color(0x0DFFFFFF),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: _bpm == entry.value ? gold : cardBorder,
+                                color: _bpm == entry.value ? goldBright : cardBorder,
                               ),
+                              boxShadow: _bpm == entry.value
+                                  ? [BoxShadow(color: gold.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))]
+                                  : null,
                             ),
                             alignment: Alignment.center,
                             child: Text(entry.key,
                                 style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: _bpm == entry.value ? bgDark1 : textSecondary)),
+                                    color: _bpm == entry.value ? bgDeep : textSecondary)),
                           ),
                         ),
                       ),
@@ -1613,9 +1685,9 @@ class _AfinadorAppState extends State<AfinadorApp> {
                 Expanded(
                   child: SliderTheme(
                     data: SliderThemeData(
-                      activeTrackColor: gold,
+                      activeTrackColor: goldBright,
                       inactiveTrackColor: textMuted.withOpacity(0.3),
-                      thumbColor: gold,
+                      thumbColor: goldBright,
                       overlayColor: gold.withOpacity(0.1),
                     ),
                     child: Slider(
@@ -1636,6 +1708,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                     gradient: const LinearGradient(colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)]),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: gold.withOpacity(0.4)),
+                    boxShadow: [BoxShadow(color: gold.withOpacity(0.1), blurRadius: 8)],
                   ),
                   child: Text('${_bpm.round()}',
                       style: const TextStyle(
@@ -1646,7 +1719,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
               ]),
               const SizedBox(height: 20),
 
-              _luxButton(
+              _LuxButton(
                 label: '🎧  Ouvir escala',
                 icon: Icons.headphones,
                 onPressed: emProgresso ? null : _ouvirSequencia,
@@ -1654,13 +1727,14 @@ class _AfinadorAppState extends State<AfinadorApp> {
               ),
               const SizedBox(height: 12),
 
-              _luxButton(
+              _LuxButton(
                 label: emProgresso ? 'Parar' : '🎤  Validar escala',
                 icon: emProgresso ? Icons.stop : Icons.mic,
                 onPressed: emProgresso ? _parar : _iniciarSequencia,
                 background: emProgresso ? danger : null,
                 isGold: !emProgresso,
-                foreground: emProgresso ? textPrimary : bgDark1,
+                isDanger: emProgresso,
+                foreground: emProgresso ? textPrimary : bgDeep,
               ),
             ]),
           ),
@@ -1674,12 +1748,17 @@ class _AfinadorAppState extends State<AfinadorApp> {
               child: Column(children: [
                 if (_fase == FaseSequencia.contagem)
                   Column(children: [
-                    Text('$_batidaContagem',
-                        style: const TextStyle(
-                            fontSize: 72,
-                            fontWeight: FontWeight.w200,
-                            color: gold,
-                            letterSpacing: 4)),
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [goldBright, gold],
+                      ).createShader(bounds),
+                      child: Text('$_batidaContagem',
+                          style: const TextStyle(
+                              fontSize: 72,
+                              fontWeight: FontWeight.w200,
+                              color: textPrimary,
+                              letterSpacing: 4)),
+                    ),
                     const Text('Prepare-se...',
                         style: TextStyle(fontSize: 14, color: textMuted, letterSpacing: 1.5)),
                   ])
@@ -1687,12 +1766,17 @@ class _AfinadorAppState extends State<AfinadorApp> {
                   Column(children: [
                     const _LuxTitle('Cante agora'),
                     const SizedBox(height: 12),
-                    Text(_notaAlvo,
-                        style: const TextStyle(
-                            fontSize: 72,
-                            fontWeight: FontWeight.w200,
-                            color: textPrimary,
-                            letterSpacing: 4)),
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [goldBright, gold, goldSoft],
+                      ).createShader(bounds),
+                      child: Text(_notaAlvo,
+                          style: const TextStyle(
+                              fontSize: 72,
+                              fontWeight: FontWeight.w200,
+                              color: textPrimary,
+                              letterSpacing: 4)),
+                    ),
                     Text(
                         'Nota ${_indiceNotaAtual + 1} de ${_sequenciaAtual.length}',
                         style: const TextStyle(
@@ -1701,13 +1785,10 @@ class _AfinadorAppState extends State<AfinadorApp> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [gold, goldSoft]),
+                        gradient: const LinearGradient(colors: [goldBright, gold, goldSoft]),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
-                          BoxShadow(
-                            color: gold.withOpacity(0.3),
-                            blurRadius: 12,
-                          ),
+                          BoxShadow(color: gold.withOpacity(0.4), blurRadius: 16, offset: const Offset(0, 4)),
                         ],
                       ),
                       child: Text(
@@ -1715,7 +1796,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                           style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: bgDark1)),
+                              color: bgDeep)),
                     ),
                     const SizedBox(height: 16),
                     ClipRRect(
@@ -1723,7 +1804,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                       child: LinearProgressIndicator(
                           value: (_indiceNotaAtual + 1) / _sequenciaAtual.length,
                           backgroundColor: textMuted.withOpacity(0.2),
-                          valueColor: const AlwaysStoppedAnimation<Color>(gold),
+                          valueColor: const AlwaysStoppedAnimation<Color>(goldBright),
                           minHeight: 6),
                     ),
                     const SizedBox(height: 16),
@@ -1765,36 +1846,43 @@ class _AfinadorAppState extends State<AfinadorApp> {
                           minHeight: 6),
                     ),
                     const SizedBox(height: 16),
-                    Text(_notaAlvo,
-                        style: const TextStyle(
-                            fontSize: 56,
-                            fontWeight: FontWeight.w200,
-                            color: textPrimary,
-                            letterSpacing: 3)),
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [goldBright, gold],
+                      ).createShader(bounds),
+                      child: Text(_notaAlvo,
+                          style: const TextStyle(
+                              fontSize: 56,
+                              fontWeight: FontWeight.w200,
+                              color: textPrimary,
+                              letterSpacing: 3)),
+                    ),
                   ])
                 else
                   Column(children: [
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [gold, goldSoft]),
+                        gradient: const LinearGradient(colors: [goldBright, gold, goldSoft]),
                         shape: BoxShape.circle,
                         boxShadow: [
-                          BoxShadow(
-                            color: gold.withOpacity(0.4),
-                            blurRadius: 20,
-                          ),
+                          BoxShadow(color: gold.withOpacity(0.5), blurRadius: 24, offset: const Offset(0, 4)),
                         ],
                       ),
-                      child: const Icon(Icons.check, color: bgDark1, size: 40),
+                      child: const Icon(Icons.check, color: bgDeep, size: 40),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Escala concluída!',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: gold,
-                            letterSpacing: 1.5)),
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [gold, goldBright],
+                      ).createShader(bounds),
+                      child: const Text('Escala concluída!',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: textPrimary,
+                              letterSpacing: 1.5)),
+                    ),
                   ]),
               ]),
             ),
@@ -1831,19 +1919,19 @@ class _AfinadorAppState extends State<AfinadorApp> {
                       const Text('Gravação finalizada! (voz + notas)',
                           style: TextStyle(fontSize: 14, color: textSecondary)),
                       const SizedBox(height: 12),
-                      _luxButton(
+                      _LuxButton(
                         label: '🎧  Ouvir gravação',
                         icon: Icons.play_circle,
                         onPressed: _ouvirGravacao,
                         foreground: textPrimary,
                       ),
                       const SizedBox(height: 10),
-                      _luxButton(
+                      _LuxButton(
                         label: '⬇️  Baixar áudio (.$_extensaoAudio)',
                         icon: Icons.download,
                         onPressed: _baixarGravacao,
                         isGold: true,
-                        foreground: bgDark1,
+                        foreground: bgDeep,
                       ),
                     ]),
                 ],
@@ -1870,9 +1958,14 @@ class _AfinadorAppState extends State<AfinadorApp> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0x0DFFFFFF),
-                borderRadius: BorderRadius.circular(12),
+                gradient: const LinearGradient(
+                  colors: [Color(0x1AFFFFFF), Color(0x08FFFFFF)],
+                ),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: cardBorder),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+                ],
               ),
               child: Column(children: [
                 Text('$certas/$total',
@@ -1888,10 +1981,15 @@ class _AfinadorAppState extends State<AfinadorApp> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [gold.withOpacity(0.15), goldSoft.withOpacity(0.05)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [gold.withOpacity(0.3), goldSoft.withOpacity(0.1)],
                 ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: gold.withOpacity(0.3)),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: gold.withOpacity(0.4)),
+                boxShadow: [
+                  BoxShadow(color: gold.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4)),
+                ],
               ),
               child: Column(children: [
                 Text('$afinadas/$total',
@@ -1997,7 +2095,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
                   gradient: const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [gold, goldSoft],
+                    colors: [goldBright, gold, goldSoft],
                   ),
                   borderRadius: BorderRadius.circular(3),
                   boxShadow: [
@@ -2022,7 +2120,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
   }
 }
 
-// ====== WRAPPERS PARA AS ABAS (pra poder usar const no TabBarView) ======
+// ====== WRAPPERS PARA AS ABAS ======
 class _AbaAfinadorWrapper extends StatefulWidget {
   const _AbaAfinadorWrapper();
   @override
