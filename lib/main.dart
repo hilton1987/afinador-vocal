@@ -410,7 +410,7 @@ class _AfinadorAppState extends State<AfinadorApp> {
     final masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0, now);
     masterGain.gain.linearRampToValueAtTime(0.25, now + 0.05);
-    masterGain.setValueAtTime(0.25, now + dur - 0.1);
+    masterGain.gain.setValueAtTime(0.25, now + dur - 0.1);
     masterGain.gain.linearRampToValueAtTime(0, now + dur);
 
     osc.connect(f1);
