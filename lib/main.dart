@@ -929,14 +929,14 @@ Widget build(BuildContext context) {
         centerTitle: true,
       ),
       
-      cardTheme: CardTheme(
-        color: pianoWhite,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          side: const BorderSide(color: pianoBlack, width: 1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
+     cardTheme: CardThemeData(
+  color: pianoWhite,
+  elevation: 0,
+  shape: RoundedRectangleBorder(
+    side: const BorderSide(color: pianoBlack, width: 1),
+    borderRadius: BorderRadius.circular(12),
+  ),
+),
       
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
