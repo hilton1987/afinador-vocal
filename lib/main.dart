@@ -898,70 +898,117 @@ class _AfinadorAppState extends State<AfinadorApp> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData(
-        scaffoldBackgroundColor: pianoWhite,
-        cardTheme: CardThemeData(
-          color: pianoWhite,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            side: const BorderSide(color: pianoBlack, width: 1),
-            borderRadius: BorderRadius.circular(12),
-          ),
+ @override
+Widget build(BuildContext context) {
+  return MaterialApp(
+    theme: ThemeData(
+      useMaterial3: false, // ⬅️ DESLIGA Material 3 (causa das cores roxas)
+      brightness: Brightness.light,
+      primaryColor: pianoBlack,
+      scaffoldBackgroundColor: pianoWhite,
+      canvasColor: pianoWhite,
+      cardColor: pianoWhite,
+      dialogBackgroundColor: pianoWhite,
+      indicatorColor: pianoBlack,
+      
+      colorScheme: const ColorScheme.light(
+        primary: pianoBlack,
+        secondary: pianoBlack,
+        surface: pianoWhite,
+        background: pianoWhite,
+        onPrimary: pianoWhite,
+        onSecondary: pianoWhite,
+        onSurface: pianoBlack,
+        onBackground: pianoBlack,
+      ),
+      
+      appBarTheme: const AppBarTheme(
+        backgroundColor: pianoBlack,
+        foregroundColor: pianoWhite,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      
+      cardTheme: CardTheme(
+        color: pianoWhite,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: pianoBlack, width: 1),
+          borderRadius: BorderRadius.circular(12),
         ),
-        appBarTheme: const AppBarTheme(
+      ),
+      
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
           backgroundColor: pianoBlack,
           foregroundColor: pianoWhite,
           elevation: 0,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: pianoBlack,
-            foregroundColor: pianoWhite,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: const OutlineInputBorder(
-            borderSide: BorderSide(color: pianoBlack, width: 1),
-          ),
-          enabledBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: pianoBlack, width: 1),
-          ),
-          focusedBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: pianoBlack, width: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
-      home: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          backgroundColor: pianoWhite,
-          appBar: AppBar(
-            backgroundColor: pianoBlack,
-            title: const Text('Afinador Vocal', style: TextStyle(color: pianoWhite)),
-            bottom: TabBar(
-              indicatorColor: pianoWhite,
-              labelColor: pianoWhite,
-              unselectedLabelColor: pianoGray,
-              tabs: const [
-                Tab(text: 'Afinador'),
-                Tab(text: 'Escala'),
-              ],
-            ),
-          ),
-          body: TabBarView(children: [
-            _buildAbaAfinador(),
-            _buildAbaSequencia(),
-          ]),
+      
+      toggleButtonsTheme: ToggleButtonsThemeData(
+        color: pianoBlack,
+        selectedColor: pianoWhite,
+        fillColor: pianoBlack,
+        borderColor: pianoBlack,
+        selectedBorderColor: pianoBlack,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      
+      inputDecorationTheme: InputDecorationTheme(
+        fillColor: pianoWhite,
+        filled: true,
+        border: const OutlineInputBorder(
+          borderSide: BorderSide(color: pianoBlack, width: 1),
+        ),
+        enabledBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: pianoBlack, width: 1),
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: pianoBlack, width: 2),
         ),
       ),
-    );
-  }
+      
+      sliderTheme: SliderThemeData(
+        activeTrackColor: pianoBlack,
+        inactiveTrackColor: pianoIce,
+        thumbColor: pianoBlack,
+        overlayColor: pianoBlack.withOpacity(0.1),
+      ),
+      
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: pianoBlack,
+        linearTrackColor: pianoIce,
+      ),
+    ),
+    home: DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: pianoWhite,
+        appBar: AppBar(
+          backgroundColor: pianoBlack,
+          title: const Text('Afinador Vocal', style: TextStyle(color: pianoWhite)),
+          bottom: TabBar(
+            indicatorColor: pianoWhite,
+            labelColor: pianoWhite,
+            unselectedLabelColor: pianoGray,
+            tabs: const [
+              Tab(text: 'Afinador'),
+              Tab(text: 'Escala'),
+            ],
+          ),
+        ),
+        body: TabBarView(children: [
+          _buildAbaAfinador(),
+          _buildAbaSequencia(),
+        ]),
+      ),
+    ),
+  );
+}
 
   Widget _buildAbaAfinador() {
     final desvio = _desvioAlvo;
