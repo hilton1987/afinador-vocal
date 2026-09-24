@@ -24,9 +24,9 @@ const Map<String, List<double>> formantes = {
 };
 
 // ====== PALETA MODERNA 3D ======
-const Color bgDeep = Color(0xFF08080F);   // topo
-const Color bgMid = Color(0xFF131320);    // meio
-const Color bgGlow = Color(0xFF1E1633);   // brilho violeta sutil
+const Color bgDeep = Color(0xFF08080F);
+const Color bgMid = Color(0xFF131320);
+const Color bgGlow = Color(0xFF1E1633);
 const Color gold = Color(0xFFD4AF37);
 const Color goldBright = Color(0xFFFFD700);
 const Color goldSoft = Color(0xFF9C7B1E);
@@ -229,7 +229,7 @@ class _LuxTitle extends StatelessWidget {
   }
 }
 
-// ====== BOTÃO 3D COM BRILHO NO HOVER ======
+// ====== BOTÃO 3D COM BRILHO NO HOVER (CORRIGIDO) ======
 class _LuxButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -255,6 +255,7 @@ class _LuxButton extends StatefulWidget {
 
 class _LuxButtonState extends State<_LuxButton> {
   bool _hover = false;
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -279,62 +280,75 @@ class _LuxButtonState extends State<_LuxButton> {
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.forbidden,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(18),
-          border: widget.isGold
-              ? null
-              : Border.all(
-                  color: enabled
-                      ? (widget.isDanger ? danger : gold.withOpacity(0.5))
-                      : textMuted.withOpacity(0.3),
-                  width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: widget.isGold ? goldShadow : Colors.black.withOpacity(0.45),
-              blurRadius: _hover ? 24 : 12,
-              offset: const Offset(0, 6),
-            ),
-            if (_hover && enabled)
-              BoxShadow(
-                color: (widget.isGold ? goldBright : gold).withOpacity(0.35),
-                blurRadius: 30,
-                offset: const Offset(0, -2),
-              ),
-          ],
-        ),
-        child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.icon != null) ...[
-                Icon(
-                  widget.icon,
-                  color: _hover && enabled && !widget.isGold
-                      ? goldBright
-                      : (widget.foreground ?? textPrimary),
-                  size: 20,
+      onExit: (_) => setState(() {
+        _hover = false;
+        _pressed = false;
+      }),
+      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      child: GestureDetector(
+        onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+        onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
+        onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+        onTap: widget.onPressed,
+        child: AnimatedScale(
+          scale: _pressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+            decoration: BoxDecoration(
+              gradient: gradient,
+              borderRadius: BorderRadius.circular(18),
+              border: widget.isGold
+                  ? null
+                  : Border.all(
+                      color: enabled
+                          ? (widget.isDanger ? danger : gold.withOpacity(0.5))
+                          : textMuted.withOpacity(0.3),
+                      width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.isGold ? goldShadow : Colors.black.withOpacity(0.45),
+                  blurRadius: _hover ? 24 : 12,
+                  offset: const Offset(0, 6),
                 ),
-                const SizedBox(width: 8),
+                if (_hover && enabled)
+                  BoxShadow(
+                    color: (widget.isGold ? goldBright : gold).withOpacity(0.35),
+                    blurRadius: 30,
+                    offset: const Offset(0, -2),
+                  ),
               ],
-              Text(
-                widget.label,
-                style: TextStyle(
-                  color: _hover && enabled && !widget.isGold
-                      ? goldBright
-                      : (widget.foreground ?? textPrimary),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
+            ),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.icon != null) ...[
+                    Icon(
+                      widget.icon,
+                      color: _hover && enabled && !widget.isGold
+                          ? goldBright
+                          : (widget.foreground ?? textPrimary),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    widget.label,
+                    style: TextStyle(
+                      color: _hover && enabled && !widget.isGold
+                          ? goldBright
+                          : (widget.foreground ?? textPrimary),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -457,7 +471,6 @@ class _AfinadorAppState extends State<AfinadorApp> {
     _analyser = _audioCtx!.createAnalyser();
     _analyser!.fftSize = 2048;
     source.connect(_analyser!);
-
     source.connect(_destinoGravacao!);
 
     _dataArray = Float32List(2048);
